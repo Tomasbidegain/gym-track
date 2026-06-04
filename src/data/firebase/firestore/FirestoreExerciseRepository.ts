@@ -117,7 +117,7 @@ export class FirestoreExerciseRepository implements IExerciseRepository {
       const updateData: Record<string, unknown> = { ...data, updatedAt: serverTimestamp() };
       delete updateData.id;
       delete updateData.createdAt;
-      await updateDoc(docRef, updateData);
+      await updateDoc(docRef, updateData as any);
       const updated = await this.getById(uid, exerciseId);
       if (!updated) {
         throw new Error('Exercise not found after update');
