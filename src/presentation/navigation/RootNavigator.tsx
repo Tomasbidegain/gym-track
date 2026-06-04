@@ -3,6 +3,7 @@ import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { useAuthContext } from '../context/AuthContext';
 import { RoutineContextProvider } from '../context/RoutineContext';
+import { ExercisePickerProvider } from '../context/ExercisePickerContext';
 import { AuthStack } from './AuthStack';
 import { MainAppTabs } from './MainAppTabs';
 
@@ -21,7 +22,9 @@ export function RootNavigator() {
     <NavigationContainer>
       {user ? (
         <RoutineContextProvider>
-          <MainAppTabs />
+          <ExercisePickerProvider>
+            <MainAppTabs />
+          </ExercisePickerProvider>
         </RoutineContextProvider>
       ) : (
         <AuthStack />

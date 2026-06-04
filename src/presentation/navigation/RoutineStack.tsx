@@ -5,6 +5,7 @@ import { RoutineListScreen } from '../screens/routines/RoutineListScreen';
 import { RoutineDetailScreen } from '../screens/routines/RoutineDetailScreen';
 import { RoutineCreateScreen } from '../screens/routines/RoutineCreateScreen';
 import { RoutineEditScreen } from '../screens/routines/RoutineEditScreen';
+import { ExercisePickerScreen } from '../screens/exercises/ExercisePickerScreen';
 
 const Stack = createNativeStackNavigator<RoutineStackParamList>();
 
@@ -30,6 +31,11 @@ export function RoutineStack() {
         name="RoutineEdit"
         component={RoutineEditScreen}
         options={{ title: 'Editar rutina' }}
+      />
+      <Stack.Screen
+        name="ExercisePicker"
+        component={ExercisePickerScreen}
+        options={{ title: 'Seleccionar ejercicios', presentation: 'modal' }}
       />
     </Stack.Navigator>
   );
