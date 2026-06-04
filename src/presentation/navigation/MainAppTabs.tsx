@@ -1,29 +1,21 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import type { MainAppTabParamList } from './types';
 import { ProfileScreen } from '../screens/profile/ProfileScreen';
+import { ExerciseStack } from './ExerciseStack';
 
 const Tab = createBottomTabNavigator<MainAppTabParamList>();
-
-function ExercisesPlaceholder() {
-  return (
-    <View style={styles.placeholderContainer}>
-      <Text style={styles.placeholderText}>Ejercicios</Text>
-      <Text style={styles.placeholderSubtext}>Próximamente en Slice 3</Text>
-    </View>
-  );
-}
 
 export function MainAppTabs() {
   return (
     <Tab.Navigator>
       <Tab.Screen
         name="Exercises"
-        component={ExercisesPlaceholder}
+        component={ExerciseStack}
         options={{
           title: 'Ejercicios',
           tabBarLabel: 'Ejercicios',
+          headerShown: false,
         }}
       />
       <Tab.Screen
@@ -37,21 +29,3 @@ export function MainAppTabs() {
     </Tab.Navigator>
   );
 }
-
-const styles = StyleSheet.create({
-  placeholderContainer: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  placeholderText: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  placeholderSubtext: {
-    fontSize: 14,
-    color: '#888',
-  },
-});

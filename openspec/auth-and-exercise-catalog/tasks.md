@@ -8,12 +8,12 @@
 | 400-line budget risk | High |
 | Chained PRs recommended | Yes |
 | Suggested split | PR 1: Domain+Data / PR 2: Auth / PR 3: Exercise+Rules / PR 4: Tests |
-| Delivery strategy | ask-on-risk |
-| Chain strategy | pending |
+| Delivery strategy | auto-chain |
+| Chain strategy | stacked-to-main |
 
-Decision needed before apply: Yes
+Decision needed before apply: No
 Chained PRs recommended: Yes
-Chain strategy: pending
+Chain strategy: stacked-to-main
 400-line budget risk: High
 
 ### Suggested Work Units
@@ -44,28 +44,28 @@ Chain strategy: pending
 
 ## Phase 3: Auth Presentation
 
-- [ ] 3.1 Create `AuthContext.tsx` (user, loading, login, register, logout, seed trigger)
-- [ ] 3.2 Create `useAuth.ts`
-- [ ] 3.3 Create `LoginScreen.tsx` (email/password + error display)
-- [ ] 3.4 Create `RegisterScreen.tsx` (email/password/confirm + validation)
-- [ ] 3.5 Create `ProfileScreen.tsx` (email, editable name, sign-out)
-- [ ] 3.6 Create `navigation/types.ts`, `AuthStack.tsx`
+- [x] 3.1 Create `AuthContext.tsx` (user, loading, login, register, logout, seed trigger)
+- [x] 3.2 Create `useAuth.ts`
+- [x] 3.3 Create `LoginScreen.tsx` (email/password + error display)
+- [x] 3.4 Create `RegisterScreen.tsx` (email/password/confirm + validation)
+- [x] 3.5 Create `ProfileScreen.tsx` (email, editable name, sign-out)
+- [x] 3.6 Create `navigation/types.ts`, `AuthStack.tsx`
 
 ## Phase 4: Exercise Presentation
 
-- [ ] 4.1 Create `useExercises.ts` (CRUD + filters)
-- [ ] 4.2 Create `ExerciseStack.tsx`, `MainAppTabs.tsx`
-- [ ] 4.3 Create `ExerciseListScreen.tsx` (list + muscle/equipment filters)
-- [ ] 4.4 Create `ExerciseDetailScreen.tsx` (read-only for seeded)
-- [ ] 4.5 Create `ExerciseCreateScreen.tsx` (form, uniqueness validation)
-- [ ] 4.6 Create `ExerciseEditScreen.tsx` (custom only)
+- [x] 4.1 Create `useExercises.ts` (CRUD + filters)
+- [x] 4.2 Create `ExerciseStack.tsx`, `MainAppTabs.tsx`
+- [x] 4.3 Create `ExerciseListScreen.tsx` (list + muscle/equipment filters)
+- [x] 4.4 Create `ExerciseDetailScreen.tsx` (read-only for seeded)
+- [x] 4.5 Create `ExerciseCreateScreen.tsx` (form, uniqueness validation)
+- [x] 4.6 Create `ExerciseEditScreen.tsx` (custom only)
 - [ ] 4.7 Create `LoadingScreen.tsx`
 
 ## Phase 5: Integration & Rules
 
-- [ ] 5.1 Create `RootNavigator.tsx` (auth gate → AuthStack vs MainAppTabs)
-- [ ] 5.2 Modify `App.tsx` to wire `AuthContext` + `RootNavigator`
-- [ ] 5.3 Create `firestore.rules` (per-user isolation)
+- [x] 5.1 Create `RootNavigator.tsx` (auth gate → AuthStack vs MainAppTabs)
+- [x] 5.2 Modify `App.tsx` to wire `AuthContext` + `RootNavigator`
+- [x] 5.3 Create `firestore.rules` (per-user isolation)
 - [ ] 5.4 Modify `app.json` for Firebase env in `extra` if needed
 
 ## Phase 6: Testing
