@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import type { Exercise } from '../../../domain';
+import type { Exercise } from '../../domain';
 
 interface ExerciseCardProps {
   exercise: Exercise;
