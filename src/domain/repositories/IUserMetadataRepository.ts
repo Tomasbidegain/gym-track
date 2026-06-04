@@ -7,4 +7,7 @@ export interface IUserMetadataRepository {
 
   /** Update the user's display name in the metadata document. */
   updateDisplayName(uid: string, displayName: string): Promise<void>;
+
+  /** Get the user's display name from the metadata document. Returns null if not set. */
+  getDisplayName(uid: string): Promise<string | null>;
 }

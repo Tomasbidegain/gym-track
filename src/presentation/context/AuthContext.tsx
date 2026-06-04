@@ -127,8 +127,16 @@ export function AuthContextProvider({ children }: { children: React.ReactNode })
   const seededUids = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    const unsubscribe = authRepository.onAuthStateChanged((firebaseUser) => {
-      setUser(firebaseUser);
+    const unsubscribe = authRepository.onAuthStateChanged(async (firebaseUser) => {
+      if (firebaseUser) {
+        const firestoreDisplayName = await metadataRepository.getDisplayName(firebaseUser.uid);
+        setUser({
+          ...firebaseUser,
+          displayName: firestoreDisplayName ?? firebaseUser.displayName,
+        });
+      } else {
+        setUser(null);
+      }
       setIsInitializing(false);
 
       if (firebaseUser && !seededUids.current.has(firebaseUser.uid)) {
