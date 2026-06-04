@@ -1,0 +1,33 @@
+import React from 'react';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { useAuthContext } from '../context/AuthContext';
+import { AuthStack } from './AuthStack';
+import { MainAppTabs } from './MainAppTabs';
+
+export function RootNavigator() {
+  const { user, isInitializing } = useAuthContext();
+
+  if (isInitializing) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#2f95dc" />
+      </View>
+    );
+  }
+
+  return (
+    <NavigationContainer>
+      {user ? <MainAppTabs /> : <AuthStack />}
+    </NavigationContainer>
+  );
+}
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
