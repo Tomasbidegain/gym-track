@@ -27,18 +27,20 @@ Chain strategy: pending
 
 ## Phase 1: Domain Foundation
 
-- [ ] 1.1 Create entities: `UserProfile.ts`, `Exercise.ts`, `AuthCredentials.ts`
-- [ ] 1.2 Create errors: `AuthError.ts`, `ValidationError.ts`, `NetworkError.ts`
-- [ ] 1.3 Create repository interfaces: `IAuthRepository.ts`, `IExerciseRepository.ts`, `IUserMetadataRepository.ts`
-- [ ] 1.4 Create use cases: `RegisterUser.ts`, `LoginUser.ts`, `SeedExercises.ts`, `UpdateProfile.ts`
+- [x] 1.1 Create entities: `UserProfile.ts`, `Exercise.ts`, `AuthCredentials.ts`
+- [x] 1.2 Create errors: `AuthError.ts`, `ValidationError.ts`, `NetworkError.ts`
+- [x] 1.3 Create repository interfaces: `IAuthRepository.ts`, `IExerciseRepository.ts`, `IUserMetadataRepository.ts`
+- [x] 1.4 Create use cases: `RegisterUser.ts`, `LoginUser.ts`, `SeedExercises.ts`, `UpdateProfile.ts`
+  - Also implemented: `LogoutUser.ts`, `GetCurrentUser.ts`, `GetExercises.ts`, `CreateExercise.ts`, `UpdateExercise.ts`, `DeleteExercise.ts`
 
 ## Phase 2: Data Layer
 
-- [ ] 2.1 Create `firebaseConfig.ts` (singleton + offline persistence)
-- [ ] 2.2 Create `FirebaseAuthRepository.ts` (implements `IAuthRepository`)
-- [ ] 2.3 Create `FirestoreExerciseRepository.ts` (implements `IExerciseRepository`)
-- [ ] 2.4 Create `FirestoreUserMetadataRepository.ts` (seed status, display name)
-- [ ] 2.5 Create `assets/exercises-seed.json` (~80 exercises)
+- [x] 2.1 Create `firebaseConfig.ts` (singleton + offline persistence)
+- [x] 2.2 Create `FirebaseAuthRepository.ts` (implements `IAuthRepository`)
+- [x] 2.3 Create `FirestoreExerciseRepository.ts` (implements `IExerciseRepository`)
+- [x] 2.4 Create `FirestoreUserMetadataRepository.ts` (seed status, display name)
+- [x] 2.5 Create exercises seed JSON (~80 exercises)
+  - Path: `src/data/local/seed/exercises.json` (instead of `assets/exercises-seed.json` for Clean Architecture separation)
 
 ## Phase 3: Auth Presentation
 
