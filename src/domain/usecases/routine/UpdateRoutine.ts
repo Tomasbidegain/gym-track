@@ -1,4 +1,4 @@
-import type { Routine, RoutineExercise } from '../../entities/Routine';
+import type { Routine, RoutineDay } from '../../entities/Routine';
 import { validateRoutineInput } from '../../entities/Routine';
 import type { IRoutineRepository } from '../../repositories/IRoutineRepository';
 import { ValidationError } from '../../errors/ValidationError';
@@ -10,13 +10,12 @@ import {
 export interface UpdateRoutineInput {
   name?: string;
   description?: string;
-  exercises?: RoutineExercise[];
+  days?: RoutineDay[];
 }
 
 export class UpdateRoutine {
   constructor(private readonly routineRepository: IRoutineRepository) {}
 
-  /** Update an existing routine after validation. */
   async execute(
     uid: string,
     routineId: string,
@@ -45,7 +44,7 @@ export class UpdateRoutine {
     const dataToValidate = {
       name: input.name ?? existing.name,
       description: input.description ?? existing.description,
-      exercises: input.exercises ?? existing.exercises,
+      days: input.days ?? existing.days,
     };
 
     const result = validateRoutineInput(dataToValidate, otherNames);
@@ -56,10 +55,13 @@ export class UpdateRoutine {
     const data: Partial<Routine> = {};
     if (input.name !== undefined) data.name = input.name.trim();
     if (input.description !== undefined) data.description = input.description.trim();
-    if (input.exercises !== undefined) {
-      data.exercises = input.exercises.map((ex, index) => ({
-        ...ex,
-        order: ex.order ?? index,
+    if (input.days !== undefined) {
+      data.days = input.days.map((day) => ({
+        ...day,
+        exercises: day.exercises.map((ex, index) => ({
+          ...ex,
+          order: ex.order ?? index,
+        })),
       }));
     }
 
