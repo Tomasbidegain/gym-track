@@ -12,11 +12,17 @@ export interface RoutineExercise {
   notes?: string;
 }
 
+export interface RoutineDay {
+  id: string;
+  name: string;
+  exercises: RoutineExercise[];
+}
+
 export interface Routine {
   id: string;
   name: string;
   description?: string;
-  exercises: RoutineExercise[];
+  days: RoutineDay[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -30,7 +36,7 @@ export function validateRoutineInput(
   data: {
     name?: string;
     description?: string;
-    exercises?: RoutineExercise[];
+    days?: RoutineDay[];
   },
   existingNames?: string[],
 ): RoutineValidationResult {
@@ -50,30 +56,39 @@ export function validateRoutineInput(
     }
   }
 
-  if (!data.exercises || data.exercises.length === 0) {
-    errors.exercises = 'At least one exercise is required';
+  if (!data.days || data.days.length === 0) {
+    errors.days = 'At least one day is required';
   } else {
-    data.exercises.forEach((ex, index) => {
-      if (!ex.exerciseId || ex.exerciseId.trim().length === 0) {
-        errors[`exercises[${index}].exerciseId`] = 'Exercise ID is required';
+    data.days.forEach((day, dayIndex) => {
+      if (!day.name || day.name.trim().length === 0) {
+        errors[`days[${dayIndex}].name`] = 'Day name is required';
       }
-      if (!ex.exerciseName || ex.exerciseName.trim().length === 0) {
-        errors[`exercises[${index}].exerciseName`] = 'Exercise name is required';
-      }
-      if (ex.order < 0) {
-        errors[`exercises[${index}].order`] = 'Order must be non-negative';
-      }
-      if (ex.targetSets <= 0) {
-        errors[`exercises[${index}].targetSets`] =
-          'Target sets must be greater than 0';
-      }
-      if (ex.targetReps <= 0) {
-        errors[`exercises[${index}].targetReps`] =
-          'Target reps must be greater than 0';
-      }
-      if (ex.restSeconds < 0) {
-        errors[`exercises[${index}].restSeconds`] =
-          'Rest seconds must be non-negative';
+      if (!day.exercises || day.exercises.length === 0) {
+        errors[`days[${dayIndex}].exercises`] = 'Each day must have at least one exercise';
+      } else {
+        day.exercises.forEach((ex, exIndex) => {
+          if (!ex.exerciseId || ex.exerciseId.trim().length === 0) {
+            errors[`days[${dayIndex}].exercises[${exIndex}].exerciseId`] = 'Exercise ID is required';
+          }
+          if (!ex.exerciseName || ex.exerciseName.trim().length === 0) {
+            errors[`days[${dayIndex}].exercises[${exIndex}].exerciseName`] = 'Exercise name is required';
+          }
+          if (ex.order < 0) {
+            errors[`days[${dayIndex}].exercises[${exIndex}].order`] = 'Order must be non-negative';
+          }
+          if (ex.targetSets <= 0) {
+            errors[`days[${dayIndex}].exercises[${exIndex}].targetSets`] =
+              'Target sets must be greater than 0';
+          }
+          if (ex.targetReps <= 0) {
+            errors[`days[${dayIndex}].exercises[${exIndex}].targetReps`] =
+              'Target reps must be greater than 0';
+          }
+          if (ex.restSeconds < 0) {
+            errors[`days[${dayIndex}].exercises[${exIndex}].restSeconds`] =
+              'Rest seconds must be non-negative';
+          }
+        });
       }
     });
   }

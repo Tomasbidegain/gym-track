@@ -6,7 +6,6 @@ import { RoutineNotFoundError } from '../../errors/RoutineError';
 export class DuplicateRoutine {
   constructor(private readonly routineRepository: IRoutineRepository) {}
 
-  /** Duplicate an existing routine with a new name. */
   async execute(uid: string, routineId: string): Promise<Routine> {
     const original = await this.routineRepository.getById(uid, routineId);
     if (!original) {
@@ -20,7 +19,11 @@ export class DuplicateRoutine {
     return this.routineRepository.create(uid, {
       name: newName,
       description: original.description,
-      exercises: original.exercises.map((ex) => ({ ...ex })),
+      days: original.days.map((day) => ({
+        id: day.id,
+        name: day.name,
+        exercises: day.exercises.map((ex) => ({ ...ex })),
+      })),
     });
   }
 }

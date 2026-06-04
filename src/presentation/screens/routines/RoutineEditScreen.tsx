@@ -15,8 +15,24 @@ import type { RoutineScreenProps } from '../../navigation/types';
 import { useRoutines } from '../../hooks/useRoutines';
 import { useExercises } from '../../hooks/useExercises';
 import { useExercisePicker } from '../../context/ExercisePickerContext';
-import type { RoutineExercise } from '../../../domain';
+import type { RoutineDay, RoutineExercise } from '../../../domain';
 import type { Exercise } from '../../../domain';
+import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+
+let dayCounter = 0;
+function generateDayId(): string {
+  dayCounter++;
+  return `day-${Date.now()}-${dayCounter}`;
+}
+
+function createDefaultDay(name?: string): RoutineDay {
+  return {
+    id: generateDayId(),
+    name: name ?? 'Nuevo dia',
+    exercises: [],
+  };
+}
 
 function createDefaultRoutineExercise(exercise: Exercise, order: number): RoutineExercise {
   return {
@@ -45,7 +61,7 @@ export function RoutineEditScreen({ route, navigation }: RoutineScreenProps<'Rou
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [exercises, setExercises] = useState<RoutineExercise[]>([]);
+  const [days, setDays] = useState<RoutineDay[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isReady, setIsReady] = useState(false);
@@ -56,11 +72,15 @@ export function RoutineEditScreen({ route, navigation }: RoutineScreenProps<'Rou
     if (routine) {
       setName(routine.name);
       setDescription(routine.description ?? '');
-      setExercises(
-        routine.exercises
-          .slice()
-          .sort((a, b) => a.order - b.order)
-          .map((ex) => ({ ...ex })),
+      setDays(
+        routine.days.map((day) => ({
+          id: day.id,
+          name: day.name,
+          exercises: day.exercises
+            .slice()
+            .sort((a, b) => a.order - b.order)
+            .map((ex) => ({ ...ex })),
+        })),
       );
       setIsReady(true);
     }
@@ -71,77 +91,148 @@ export function RoutineEditScreen({ route, navigation }: RoutineScreenProps<'Rou
     clearError();
   }, [clearError]);
 
-  const openPicker = useCallback(() => {
-    clearFormError();
-    picker.clear();
-    exercises.forEach((ex) => picker.select(ex.exerciseId));
-    expectingReturnRef.current = true;
-    navigation.navigate('ExercisePicker');
-  }, [clearFormError, picker, exercises, navigation]);
+  const openPicker = useCallback(
+    (dayIndex: number) => {
+      clearFormError();
+      picker.clear();
+      picker.setTargetDayIndex(dayIndex);
+      days[dayIndex].exercises.forEach((ex) => picker.select(ex.exerciseId));
+      expectingReturnRef.current = true;
+      navigation.navigate('ExercisePicker' as never);
+    },
+    [clearFormError, picker, days, navigation],
+  );
 
   useFocusEffect(
     React.useCallback(() => {
       if (expectingReturnRef.current) {
         expectingReturnRef.current = false;
+        const dayIndex = picker.targetDayIndex;
+        if (dayIndex === null) return;
         const selectedIds = picker.getSelected();
+        const dayExercises = days[dayIndex]?.exercises ?? [];
         const newExercises = selectedIds
           .map((id) => catalogExercises.find((e) => e.id === id))
           .filter((e): e is Exercise => e !== undefined)
-          .filter((e) => !exercises.some((ex) => ex.exerciseId === e.id))
-          .map((e) => createDefaultRoutineExercise(e, exercises.length));
+          .filter((e) => !dayExercises.some((ex) => ex.exerciseId === e.id))
+          .map((e) => createDefaultRoutineExercise(e, dayExercises.length));
 
         if (newExercises.length > 0) {
-          setExercises((prev) => [...prev, ...newExercises].map((ex, i) => ({ ...ex, order: i })));
+          setDays((prev) =>
+            prev.map((d, i) =>
+              i === dayIndex
+                ? {
+                    ...d,
+                    exercises: [...d.exercises, ...newExercises].map((ex, idx) => ({
+                      ...ex,
+                      order: idx,
+                    })),
+                  }
+                : d,
+            ),
+          );
         }
       }
-    }, [picker, catalogExercises, exercises]),
+    }, [picker, catalogExercises, days]),
   );
 
-  const updateExercise = useCallback(
-    (index: number, updates: Partial<RoutineExercise>) => {
-      setExercises((prev) =>
-        prev.map((ex, i) => (i === index ? { ...ex, ...updates } : ex)),
-      );
-    },
-    [],
-  );
+  const addDay = useCallback(() => {
+    clearFormError();
+    setDays((prev) => [...prev, createDefaultDay(`Dia ${prev.length + 1}`)]);
+  }, [clearFormError]);
 
-  const moveExercise = useCallback((index: number, direction: 'up' | 'down') => {
-    setExercises((prev) => {
-      if (direction === 'up' && index === 0) return prev;
-      if (direction === 'down' && index === prev.length - 1) return prev;
-      const newExercises = [...prev];
-      const swapIndex = direction === 'up' ? index - 1 : index + 1;
-      const temp = newExercises[index];
-      newExercises[index] = newExercises[swapIndex];
-      newExercises[swapIndex] = temp;
-      return newExercises.map((ex, i) => ({ ...ex, order: i }));
-    });
-  }, []);
-
-  const removeExercise = useCallback(
-    (index: number) => {
+  const removeDay = useCallback(
+    (dayIndex: number) => {
       clearFormError();
-      if (exercises.length <= 1) {
-        Alert.alert('No se puede eliminar', 'La rutina debe tener al menos un ejercicio.');
+      if (days.length <= 1) {
+        Alert.alert('No se puede eliminar', 'La rutina debe tener al menos un dia.');
         return;
       }
-      Alert.alert('Eliminar ejercicio', 'Queres eliminar este ejercicio de la rutina?', [
+      Alert.alert('Eliminar dia', `Queres eliminar "${days[dayIndex].name}"?`, [
         { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Eliminar',
           style: 'destructive',
           onPress: () => {
-            setExercises((prev) => {
-              const removedId = prev[index].exerciseId;
-              picker.deselect(removedId);
-              return prev.filter((_, i) => i !== index).map((ex, i) => ({ ...ex, order: i }));
-            });
+            setDays((prev) => prev.filter((_, i) => i !== dayIndex));
           },
         },
       ]);
     },
-    [clearFormError, exercises.length, picker],
+    [clearFormError, days],
+  );
+
+  const updateDayName = useCallback((dayIndex: number, newName: string) => {
+    setDays((prev) =>
+      prev.map((d, i) => (i === dayIndex ? { ...d, name: newName } : d)),
+    );
+  }, []);
+
+  const updateExercise = useCallback(
+    (dayIndex: number, exIndex: number, updates: Partial<RoutineExercise>) => {
+      setDays((prev) =>
+        prev.map((d, i) =>
+          i === dayIndex
+            ? {
+                ...d,
+                exercises: d.exercises.map((ex, idx) =>
+                  idx === exIndex ? { ...ex, ...updates } : ex,
+                ),
+              }
+            : d,
+        ),
+      );
+    },
+    [],
+  );
+
+  const removeExercise = useCallback(
+    (dayIndex: number, exIndex: number) => {
+      clearFormError();
+      const day = days[dayIndex];
+      if (day.exercises.length <= 1) {
+        Alert.alert('No se puede eliminar', 'El dia debe tener al menos un ejercicio.');
+        return;
+      }
+      Alert.alert('Eliminar ejercicio', 'Queres eliminar este ejercicio del dia?', [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: () => {
+            setDays((prev) =>
+              prev.map((d, i) =>
+                i === dayIndex
+                  ? {
+                      ...d,
+                      exercises: d.exercises
+                        .filter((_, idx) => idx !== exIndex)
+                        .map((ex, idx) => ({ ...ex, order: idx })),
+                    }
+                  : d,
+              ),
+            );
+          },
+        },
+      ]);
+    },
+    [clearFormError, days],
+  );
+
+  const handleDragEnd = useCallback(
+    (dayIndex: number, newData: RoutineExercise[]) => {
+      setDays((prev) =>
+        prev.map((d, i) =>
+          i === dayIndex
+            ? {
+                ...d,
+                exercises: newData.map((ex, idx) => ({ ...ex, order: idx })),
+              }
+            : d,
+        ),
+      );
+    },
+    [],
   );
 
   const validate = useCallback((): boolean => {
@@ -149,22 +240,32 @@ export function RoutineEditScreen({ route, navigation }: RoutineScreenProps<'Rou
       setFormError('El nombre es obligatorio');
       return false;
     }
-    if (exercises.length === 0) {
-      setFormError('Agrega al menos un ejercicio');
+    if (days.length === 0) {
+      setFormError('Agrega al menos un dia');
       return false;
     }
-    for (const ex of exercises) {
-      if (ex.targetSets < 1) {
-        setFormError('Los sets deben ser al menos 1');
+    for (const day of days) {
+      if (!day.name.trim()) {
+        setFormError('Cada dia debe tener un nombre');
         return false;
       }
-      if (ex.restSeconds < 0) {
-        setFormError('El descanso no puede ser negativo');
+      if (day.exercises.length === 0) {
+        setFormError(`"${day.name}" debe tener al menos un ejercicio`);
         return false;
+      }
+      for (const ex of day.exercises) {
+        if (ex.targetSets < 1) {
+          setFormError('Los sets deben ser al menos 1');
+          return false;
+        }
+        if (ex.restSeconds < 0) {
+          setFormError('El descanso no puede ser negativo');
+          return false;
+        }
       }
     }
     return true;
-  }, [name, exercises]);
+  }, [name, days]);
 
   const handleSave = useCallback(async () => {
     clearFormError();
@@ -175,7 +276,10 @@ export function RoutineEditScreen({ route, navigation }: RoutineScreenProps<'Rou
       const updated = await updateRoutine(routineId, {
         name: name.trim(),
         description: description.trim() || undefined,
-        exercises: exercises.map((ex, index) => ({ ...ex, order: index })),
+        days: days.map((day) => ({
+          ...day,
+          exercises: day.exercises.map((ex, index) => ({ ...ex, order: index })),
+        })),
       });
       if (updated) {
         picker.clear();
@@ -184,7 +288,7 @@ export function RoutineEditScreen({ route, navigation }: RoutineScreenProps<'Rou
     } finally {
       setIsSaving(false);
     }
-  }, [clearFormError, validate, updateRoutine, routineId, name, description, exercises, picker, navigation]);
+  }, [clearFormError, validate, updateRoutine, routineId, name, description, days, picker, navigation]);
 
   const handleCancel = useCallback(() => {
     clearFormError();
@@ -201,155 +305,171 @@ export function RoutineEditScreen({ route, navigation }: RoutineScreenProps<'Rou
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        <Text style={styles.label}>Nombre</Text>
-        <TextInput
-          style={styles.input}
-          value={name}
-          onChangeText={(text) => {
-            setName(text);
-            clearFormError();
-          }}
-          placeholder="Nombre de la rutina"
-          maxLength={100}
-          autoCapitalize="sentences"
-        />
+    <GestureHandlerRootView style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          <Text style={styles.label}>Nombre</Text>
+          <TextInput
+            style={styles.input}
+            value={name}
+            onChangeText={(text) => {
+              setName(text);
+              clearFormError();
+            }}
+            placeholder="Nombre de la rutina"
+            maxLength={100}
+            autoCapitalize="sentences"
+          />
 
-        <Text style={styles.label}>Descripcion (opcional)</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          value={description}
-          onChangeText={(text) => {
-            setDescription(text);
-            clearFormError();
-          }}
-          placeholder="Descripcion de la rutina"
-          multiline
-          numberOfLines={3}
-          maxLength={500}
-          textAlignVertical="top"
-        />
+          <Text style={styles.label}>Descripcion (opcional)</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            value={description}
+            onChangeText={(text) => {
+              setDescription(text);
+              clearFormError();
+            }}
+            placeholder="Descripcion de la rutina"
+            multiline
+            numberOfLines={3}
+            maxLength={500}
+            textAlignVertical="top"
+          />
 
-        <View style={styles.exercisesHeader}>
-          <Text style={styles.sectionTitle}>Ejercicios</Text>
-          <TouchableOpacity style={styles.addButton} onPress={openPicker} activeOpacity={0.8}>
-            <Text style={styles.addButtonText}>+ Agregar ejercicios</Text>
+          {days.map((day, dayIndex) => (
+            <View key={day.id} style={styles.daySection}>
+              <View style={styles.dayHeader}>
+                <TextInput
+                  style={styles.dayNameInput}
+                  value={day.name}
+                  onChangeText={(text) => updateDayName(dayIndex, text)}
+                  placeholder="Nombre del dia"
+                  maxLength={100}
+                />
+                <TouchableOpacity onPress={() => removeDay(dayIndex)} activeOpacity={0.8}>
+                  <Text style={styles.removeDayText}>Eliminar dia</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.dayExercisesHeader}>
+                <Text style={styles.dayExercisesTitle}>Ejercicios</Text>
+                <TouchableOpacity
+                  style={styles.addButton}
+                  onPress={() => openPicker(dayIndex)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.addButtonText}>+ Agregar ejercicios</Text>
+                </TouchableOpacity>
+              </View>
+
+              {day.exercises.length > 0 ? (
+                <DraggableFlatList
+                  data={day.exercises}
+                  onDragEnd={({ data }) => handleDragEnd(dayIndex, data)}
+                  keyExtractor={(item) => `${item.exerciseId}-${item.order}`}
+                  renderItem={({ item, drag }) => (
+                    <ScaleDecorator>
+                      <TouchableOpacity onLongPress={drag} activeOpacity={0.9} style={styles.exerciseCard}>
+                        <View style={styles.exerciseHeader}>
+                          <Text style={styles.exerciseName}>{item.exerciseName}</Text>
+                          <TouchableOpacity
+                            onPress={() => removeExercise(dayIndex, item.order)}
+                            activeOpacity={0.8}
+                          >
+                            <Text style={styles.removeText}>Eliminar</Text>
+                          </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.fieldsRow}>
+                          <View style={styles.field}>
+                            <Text style={styles.fieldLabel}>Series</Text>
+                            <TextInput
+                              style={styles.fieldInput}
+                              value={String(item.targetSets)}
+                              onChangeText={(text) => {
+                                const val = parseInt(text, 10);
+                                updateExercise(dayIndex, item.order, { targetSets: isNaN(val) ? 0 : val });
+                                clearFormError();
+                              }}
+                              keyboardType="numeric"
+                              maxLength={2}
+                            />
+                          </View>
+                          <View style={styles.field}>
+                            <Text style={styles.fieldLabel}>Reps</Text>
+                            <TextInput
+                              style={styles.fieldInput}
+                              value={String(item.targetReps)}
+                              onChangeText={(text) => {
+                                const val = parseInt(text, 10);
+                                updateExercise(dayIndex, item.order, { targetReps: isNaN(val) ? 0 : val });
+                                clearFormError();
+                              }}
+                              keyboardType="numeric"
+                              maxLength={3}
+                            />
+                          </View>
+                          <View style={styles.field}>
+                            <Text style={styles.fieldLabel}>Descanso (s)</Text>
+                            <TextInput
+                              style={styles.fieldInput}
+                              value={String(item.restSeconds)}
+                              onChangeText={(text) => {
+                                const val = parseInt(text, 10);
+                                updateExercise(dayIndex, item.order, { restSeconds: isNaN(val) ? 0 : val });
+                                clearFormError();
+                              }}
+                              keyboardType="numeric"
+                              maxLength={4}
+                            />
+                          </View>
+                        </View>
+
+                        <TextInput
+                          style={[styles.input, styles.notesInput]}
+                          value={item.notes ?? ''}
+                          onChangeText={(text) => updateExercise(dayIndex, item.order, { notes: text || undefined })}
+                          placeholder="Notas (opcional)"
+                          maxLength={200}
+                        />
+                      </TouchableOpacity>
+                    </ScaleDecorator>
+                  )}
+                  scrollEnabled={false}
+                />
+              ) : (
+                <Text style={styles.noExercisesText}>
+                  Todavia no agregaste ejercicios a este dia.
+                </Text>
+              )}
+            </View>
+          ))}
+
+          <TouchableOpacity style={styles.addDayButton} onPress={addDay} activeOpacity={0.8}>
+            <Text style={styles.addDayButtonText}>+ Agregar dia</Text>
+          </TouchableOpacity>
+
+          {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
+        </ScrollView>
+
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
+            onPress={handleSave}
+            disabled={isSaving}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.saveButtonText}>{isSaving ? 'Guardando...' : 'Guardar'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.cancelButton} onPress={handleCancel} activeOpacity={0.8}>
+            <Text style={styles.cancelButtonText}>Cancelar</Text>
           </TouchableOpacity>
         </View>
-
-        {exercises.map((exercise, index) => (
-          <View key={`${exercise.exerciseId}-${index}`} style={styles.exerciseCard}>
-            <View style={styles.exerciseHeader}>
-              <Text style={styles.exerciseName}>{exercise.exerciseName}</Text>
-              <TouchableOpacity onPress={() => removeExercise(index)} activeOpacity={0.8}>
-                <Text style={styles.removeText}>Eliminar</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.fieldsRow}>
-              <View style={styles.field}>
-                <Text style={styles.fieldLabel}>Series</Text>
-                <TextInput
-                  style={styles.fieldInput}
-                  value={String(exercise.targetSets)}
-                  onChangeText={(text) => {
-                    const val = parseInt(text, 10);
-                    updateExercise(index, { targetSets: isNaN(val) ? 0 : val });
-                    clearFormError();
-                  }}
-                  keyboardType="numeric"
-                  maxLength={2}
-                />
-              </View>
-              <View style={styles.field}>
-                <Text style={styles.fieldLabel}>Reps</Text>
-                <TextInput
-                  style={styles.fieldInput}
-                  value={String(exercise.targetReps)}
-                  onChangeText={(text) => {
-                    const val = parseInt(text, 10);
-                    updateExercise(index, { targetReps: isNaN(val) ? 0 : val });
-                    clearFormError();
-                  }}
-                  keyboardType="numeric"
-                  maxLength={3}
-                />
-              </View>
-              <View style={styles.field}>
-                <Text style={styles.fieldLabel}>Descanso (s)</Text>
-                <TextInput
-                  style={styles.fieldInput}
-                  value={String(exercise.restSeconds)}
-                  onChangeText={(text) => {
-                    const val = parseInt(text, 10);
-                    updateExercise(index, { restSeconds: isNaN(val) ? 0 : val });
-                    clearFormError();
-                  }}
-                  keyboardType="numeric"
-                  maxLength={4}
-                />
-              </View>
-            </View>
-
-            <TextInput
-              style={[styles.input, styles.notesInput]}
-              value={exercise.notes ?? ''}
-              onChangeText={(text) => updateExercise(index, { notes: text || undefined })}
-              placeholder="Notas (opcional)"
-              maxLength={200}
-            />
-
-            <View style={styles.reorderRow}>
-              <TouchableOpacity
-                style={[styles.reorderButton, index === 0 && styles.reorderButtonDisabled]}
-                onPress={() => moveExercise(index, 'up')}
-                disabled={index === 0}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.reorderButtonText}>Arriba</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.reorderButton,
-                  index === exercises.length - 1 && styles.reorderButtonDisabled,
-                ]}
-                onPress={() => moveExercise(index, 'down')}
-                disabled={index === exercises.length - 1}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.reorderButtonText}>Abajo</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        ))}
-
-        {exercises.length === 0 ? (
-          <Text style={styles.noExercisesText}>
-            Todavia no agregaste ejercicios. Usa el boton de arriba.
-          </Text>
-        ) : null}
-
-        {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
-      </ScrollView>
-
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
-          onPress={handleSave}
-          disabled={isSaving}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.saveButtonText}>{isSaving ? 'Guardando...' : 'Guardar'}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.cancelButton} onPress={handleCancel} activeOpacity={0.8}>
-          <Text style={styles.cancelButtonText}>Cancelar</Text>
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </GestureHandlerRootView>
   );
 }
 
@@ -396,112 +516,139 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginTop: 4,
   },
-  exercisesHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-    marginTop: 8,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#333',
-  },
-  addButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#e3f2fd',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#2f95dc',
-  },
-  addButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#2f95dc',
-  },
-  exerciseCard: {
+  daySection: {
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 14,
-    marginBottom: 10,
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
     shadowRadius: 3,
     elevation: 2,
   },
-  exerciseHeader: {
+  dayHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    paddingBottom: 10,
+  },
+  dayNameInput: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    backgroundColor: '#fafafa',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#eee',
+    marginRight: 10,
+  },
+  removeDayText: {
+    fontSize: 13,
+    color: '#d32f2f',
+    fontWeight: '500',
+  },
+  dayExercisesHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 10,
   },
+  dayExercisesTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#555',
+  },
+  addButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: '#e3f2fd',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#2f95dc',
+  },
+  addButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#2f95dc',
+  },
+  exerciseCard: {
+    backgroundColor: '#fafafa',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#eee',
+  },
+  exerciseHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   exerciseName: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
     color: '#1a1a1a',
     flex: 1,
   },
   removeText: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#d32f2f',
     fontWeight: '500',
   },
   fieldsRow: {
     flexDirection: 'row',
-    gap: 10,
-    marginBottom: 8,
+    gap: 8,
+    marginBottom: 6,
   },
   field: {
     flex: 1,
   },
   fieldLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '500',
     color: '#888',
-    marginBottom: 4,
+    marginBottom: 3,
+    textAlign: 'center',
   },
   fieldInput: {
-    backgroundColor: '#fafafa',
+    backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    fontSize: 14,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    fontSize: 13,
     textAlign: 'center',
     color: '#1a1a1a',
   },
-  reorderRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 8,
-  },
-  reorderButton: {
-    flex: 1,
-    paddingVertical: 8,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  reorderButtonDisabled: {
-    opacity: 0.4,
-  },
-  reorderButtonText: {
-    fontSize: 13,
-    color: '#555',
-    fontWeight: '500',
-  },
   noExercisesText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#888',
     textAlign: 'center',
-    marginTop: 8,
+    marginVertical: 10,
+  },
+  addDayButton: {
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#2f95dc',
+    borderStyle: 'dashed',
     marginBottom: 16,
+  },
+  addDayButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2f95dc',
   },
   errorText: {
     fontSize: 14,
