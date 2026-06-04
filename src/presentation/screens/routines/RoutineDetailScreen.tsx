@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -17,12 +17,12 @@ const muscleGroupLabels: Record<string, string> = {
   chest: 'Pecho',
   back: 'Espalda',
   shoulders: 'Hombros',
-  biceps: 'Bíceps',
-  triceps: 'Tríceps',
+  biceps: 'Biceps',
+  triceps: 'Triceps',
   legs: 'Piernas',
   core: 'Core',
   forearms: 'Antebrazos',
-  glutes: 'Glúteos',
+  glutes: 'Gluteos',
   calves: 'Gemelos',
 };
 
@@ -35,8 +35,8 @@ function formatRest(seconds: number): string {
   return `${seconds}s`;
 }
 
-function getUniqueMuscleGroups(routine: Routine): string[] {
-  const groups = new Set(routine.exercises.map((ex) => ex.muscleGroup));
+function getUniqueMuscleGroupsForDay(dayExercises: RoutineExercise[]): string[] {
+  const groups = new Set(dayExercises.map((ex) => ex.muscleGroup));
   return Array.from(groups);
 }
 
@@ -53,14 +53,17 @@ export function RoutineDetailScreen({
     [routines, routineId],
   );
 
+  const [selectedDayIndex, setSelectedDayIndex] = useState(0);
+
   const validExerciseIds = useMemo(
     () => catalogExercises.map((e) => e.id),
     [catalogExercises],
   );
 
+  const selectedDay = routine?.days[selectedDayIndex];
   const muscleGroups = useMemo(() => {
-    return routine ? getUniqueMuscleGroups(routine) : [];
-  }, [routine]);
+    return selectedDay ? getUniqueMuscleGroupsForDay(selectedDay.exercises) : [];
+  }, [selectedDay]);
 
   const handleEdit = useCallback(() => {
     clearError();
@@ -78,7 +81,7 @@ export function RoutineDetailScreen({
     if (!routine) return;
     Alert.alert(
       'Eliminar rutina',
-      `¿Estás seguro de que querés eliminar "${routine.name}"?`,
+      `Estas seguro de que queres eliminar "${routine.name}"?`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -113,6 +116,31 @@ export function RoutineDetailScreen({
           <Text style={styles.description}>{routine.description}</Text>
         ) : null}
 
+        {routine.days.length > 1 ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.tabsRow}
+          >
+            {routine.days.map((day, index) => (
+              <TouchableOpacity
+                key={day.id}
+                style={[styles.tab, index === selectedDayIndex && styles.tabActive]}
+                onPress={() => setSelectedDayIndex(index)}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[styles.tabText, index === selectedDayIndex && styles.tabTextActive]}
+                >
+                  {day.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        ) : (
+          <Text style={styles.singleDayLabel}>{routine.days[0]?.name}</Text>
+        )}
+
         <View style={styles.badgesRow}>
           {muscleGroups.map((group) => (
             <View key={group} style={styles.badge}>
@@ -123,7 +151,7 @@ export function RoutineDetailScreen({
 
         <Text style={styles.sectionTitle}>Ejercicios</Text>
 
-        {routine.exercises
+        {selectedDay?.exercises
           .slice()
           .sort((a, b) => a.order - b.order)
           .map((exercise) => (
@@ -178,7 +206,7 @@ function ExerciseCard({
 
       <View style={styles.exerciseDetails}>
         <Text style={styles.detailText}>
-          {exercise.targetSets} series × {exercise.targetReps} reps
+          {exercise.targetSets} series x {exercise.targetReps} reps
         </Text>
         <Text style={styles.detailText}>Descanso: {formatRest(exercise.restSeconds)}</Text>
         {exercise.notes ? <Text style={styles.notesText}>Nota: {exercise.notes}</Text> : null}
@@ -228,6 +256,38 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     lineHeight: 20,
+    marginBottom: 12,
+  },
+  tabsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  tab: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  tabActive: {
+    backgroundColor: '#2f95dc',
+    borderColor: '#2f95dc',
+  },
+  tabText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#555',
+  },
+  tabTextActive: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  singleDayLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#555',
     marginBottom: 12,
   },
   badgesRow: {
