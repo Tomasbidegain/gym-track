@@ -18,7 +18,6 @@ import { useExercisePicker } from '../../context/ExercisePickerContext';
 import type { RoutineDay, RoutineExercise } from '../../../domain';
 import type { Exercise } from '../../../domain';
 import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 let dayCounter = 0;
 function generateDayId(): string {
@@ -272,12 +271,11 @@ export function RoutineCreateScreen({ navigation }: RoutineScreenProps<'RoutineC
   }, [clearFormError, picker, navigation]);
 
   return (
-    <GestureHandlerRootView style={styles.container}>
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <Text style={styles.label}>Nombre</Text>
           <TextInput
             style={styles.input}
@@ -435,8 +433,7 @@ export function RoutineCreateScreen({ navigation }: RoutineScreenProps<'RoutineC
             <Text style={styles.cancelButtonText}>Cancelar</Text>
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
-    </GestureHandlerRootView>
+    </KeyboardAvoidingView>
   );
 }
 
