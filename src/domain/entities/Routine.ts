@@ -93,13 +93,13 @@ export function generateDuplicateName(
   existingNames: string[],
 ): string {
   const base = originalName.trim();
-  let candidate = `${base} (Copy)`;
+  let candidate = `${base} (Copia)`;
   let counter = 2;
 
   const normalizedExisting = existingNames.map((n) => n.trim().toLowerCase());
 
   while (normalizedExisting.includes(candidate.toLowerCase())) {
-    candidate = `${base} (Copy ${counter})`;
+    candidate = `${base} (Copia ${counter})`;
     counter++;
   }
 
