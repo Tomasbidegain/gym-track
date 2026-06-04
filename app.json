@@ -1,8 +1,9 @@
 {
   "expo": {
-    "name": "gym-tracker-temp",
-    "slug": "gym-tracker-temp",
+    "name": "gym-tracker-app",
+    "slug": "gym-tracker-app",
     "version": "1.0.0",
+    "entryPoint": "./index.ts",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
