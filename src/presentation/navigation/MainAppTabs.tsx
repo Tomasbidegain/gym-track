@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import type { MainAppTabParamList } from './types';
 import { ProfileScreen } from '../screens/profile/ProfileScreen';
 import { ExerciseStack } from './ExerciseStack';
+import { RoutineStack } from './RoutineStack';
 
 const Tab = createBottomTabNavigator<MainAppTabParamList>();
 
@@ -15,6 +16,15 @@ export function MainAppTabs() {
         options={{
           title: 'Ejercicios',
           tabBarLabel: 'Ejercicios',
+          headerShown: false,
+        }}
+      />
+      <Tab.Screen
+        name="Routines"
+        component={RoutineStack}
+        options={{
+          title: 'Rutinas',
+          tabBarLabel: 'Rutinas',
           headerShown: false,
         }}
       />
