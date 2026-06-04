@@ -13,8 +13,16 @@ export type ExerciseStackParamList = {
   ExerciseEdit: { exerciseId: string };
 };
 
+export type RoutineStackParamList = {
+  RoutineList: undefined;
+  RoutineDetail: { routineId: string };
+  RoutineCreate: undefined;
+  RoutineEdit: { routineId: string };
+};
+
 export type MainAppTabParamList = {
   Exercises: undefined;
+  Routines: undefined;
   Profile: undefined;
 };
 
@@ -25,6 +33,11 @@ export type AuthScreenProps<T extends keyof AuthStackParamList> = NativeStackScr
 
 export type ExerciseScreenProps<T extends keyof ExerciseStackParamList> = NativeStackScreenProps<
   ExerciseStackParamList,
+  T
+>;
+
+export type RoutineScreenProps<T extends keyof RoutineStackParamList> = NativeStackScreenProps<
+  RoutineStackParamList,
   T
 >;
 
