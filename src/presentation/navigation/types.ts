@@ -18,7 +18,7 @@ export type RoutineStackParamList = {
   RoutineDetail: { routineId: string };
   RoutineCreate: undefined;
   RoutineEdit: { routineId: string };
-  ExercisePicker: undefined;
+  ExercisePicker: { dayIndex?: number };
 };
 
 export type MainAppTabParamList = {

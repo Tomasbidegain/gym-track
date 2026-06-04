@@ -12,7 +12,7 @@ import {
   type Firestore,
   type Timestamp,
 } from 'firebase/firestore';
-import type { Routine, RoutineExercise } from '../../../domain/entities/Routine';
+import type { Routine, RoutineDay, RoutineExercise } from '../../../domain/entities/Routine';
 import type { IRoutineRepository } from '../../../domain/repositories/IRoutineRepository';
 import {
   RoutineNotFoundError,
@@ -24,17 +24,33 @@ import { generateDuplicateName } from '../../../domain/entities/Routine';
 interface FirestoreRoutineData {
   name: string;
   description?: string;
-  exercises: RoutineExercise[];
+  days?: RoutineDay[];
+  exercises?: RoutineExercise[];
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
 
 function toRoutine(id: string, data: FirestoreRoutineData): Routine {
+  let days: RoutineDay[];
+  if (data.days && data.days.length > 0) {
+    days = data.days;
+  } else if (data.exercises && data.exercises.length > 0) {
+    days = [
+      {
+        id: 'day-1',
+        name: 'Dia 1',
+        exercises: data.exercises,
+      },
+    ];
+  } else {
+    days = [];
+  }
+
   return {
     id,
     name: data.name,
     description: data.description,
-    exercises: data.exercises,
+    days,
     createdAt: data.createdAt.toDate(),
     updatedAt: data.updatedAt.toDate(),
   };
@@ -51,7 +67,6 @@ export class FirestoreRoutineRepository implements IRoutineRepository {
     this.firestore = firestore;
   }
 
-  /** Get all routines for a user, ordered by name. */
   async getAll(uid: string): Promise<Routine[]> {
     try {
       const colRef = collection(this.firestore, routinesPath(uid));
@@ -65,7 +80,6 @@ export class FirestoreRoutineRepository implements IRoutineRepository {
     }
   }
 
-  /** Get a single routine by ID. */
   async getById(uid: string, routineId: string): Promise<Routine | null> {
     try {
       const docRef = doc(this.firestore, routinesPath(uid), routineId);
@@ -77,7 +91,6 @@ export class FirestoreRoutineRepository implements IRoutineRepository {
     }
   }
 
-  /** Create a new routine. */
   async create(
     uid: string,
     routine: Omit<Routine, 'id' | 'createdAt' | 'updatedAt'>,
@@ -88,7 +101,7 @@ export class FirestoreRoutineRepository implements IRoutineRepository {
       const docRef = await addDoc(colRef, {
         name: routine.name,
         description: routine.description,
-        exercises: routine.exercises,
+        days: routine.days,
         createdAt: now,
         updatedAt: now,
       });
@@ -96,7 +109,7 @@ export class FirestoreRoutineRepository implements IRoutineRepository {
         id: docRef.id,
         name: routine.name,
         description: routine.description,
-        exercises: routine.exercises,
+        days: routine.days,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -105,7 +118,6 @@ export class FirestoreRoutineRepository implements IRoutineRepository {
     }
   }
 
-  /** Update an existing routine. */
   async update(
     uid: string,
     routineId: string,
@@ -130,7 +142,6 @@ export class FirestoreRoutineRepository implements IRoutineRepository {
     }
   }
 
-  /** Delete a routine. */
   async delete(uid: string, routineId: string): Promise<void> {
     try {
       const docRef = doc(this.firestore, routinesPath(uid), routineId);
@@ -140,7 +151,6 @@ export class FirestoreRoutineRepository implements IRoutineRepository {
     }
   }
 
-  /** Duplicate an existing routine with a new name. */
   async duplicate(uid: string, routineId: string): Promise<Routine> {
     try {
       const original = await this.getById(uid, routineId);
@@ -155,7 +165,11 @@ export class FirestoreRoutineRepository implements IRoutineRepository {
       return this.create(uid, {
         name: newName,
         description: original.description,
-        exercises: original.exercises.map((ex) => ({ ...ex })),
+        days: original.days.map((day) => ({
+          id: day.id,
+          name: day.name,
+          exercises: day.exercises.map((ex) => ({ ...ex })),
+        })),
       });
     } catch (error) {
       throw this.handleError(error);

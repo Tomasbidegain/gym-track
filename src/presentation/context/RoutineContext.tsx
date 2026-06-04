@@ -47,32 +47,38 @@ function getSpanishErrorMessage(error: unknown): string {
       if (error.fields.name.includes('required')) {
         messages.push('El nombre es obligatorio');
       } else if (error.fields.name.includes('at most 100')) {
-        messages.push('El nombre debe tener como máximo 100 caracteres');
+        messages.push('El nombre debe tener como maximo 100 caracteres');
       } else if (error.fields.name.includes('already exists')) {
         messages.push('Ya existe una rutina con ese nombre');
       } else {
         messages.push(`Nombre: ${error.fields.name}`);
       }
     }
-    if (error.fields.exercises) {
-      if (error.fields.exercises.includes('required')) {
-        messages.push('Agregá al menos un ejercicio');
+    if (error.fields.days) {
+      if (error.fields.days.includes('required')) {
+        messages.push('Agrega al menos un dia');
       } else {
-        messages.push(`Ejercicios: ${error.fields.exercises}`);
+        messages.push(`Dias: ${error.fields.days}`);
       }
     }
-    // Handle per-exercise validation fields
     Object.entries(error.fields).forEach(([field, msg]) => {
-      if (field.startsWith('exercises[')) {
+      if (field.startsWith('days[')) {
         if (msg.includes('required')) {
-          const index = field.match(/\[(\d+)\]/)?.[1];
-          messages.push(`Ejercicio ${index ? Number(index) + 1 : ''}: campo obligatorio`);
+          const match = field.match(/days\[(\d+)\]/);
+          const dayIndex = match ? Number(match[1]) + 1 : '';
+          if (field.endsWith('.name')) {
+            messages.push(`Dia ${dayIndex}: el nombre es obligatorio`);
+          } else if (field.endsWith('.exercises')) {
+            messages.push(`Dia ${dayIndex}: debe tener al menos un ejercicio`);
+          } else {
+            messages.push(`Dia ${dayIndex}: campo obligatorio`);
+          }
         } else {
           messages.push(`${field}: ${msg}`);
         }
       }
     });
-    return messages.join('\n') || 'Datos inválidos';
+    return messages.join('\n') || 'Datos invalidos';
   }
 
   if (error instanceof DuplicateRoutineNameError) {
@@ -80,18 +86,18 @@ function getSpanishErrorMessage(error: unknown): string {
   }
 
   if (error instanceof RoutineNotFoundError) {
-    return 'No se encontró la rutina';
+    return 'No se encontro la rutina';
   }
 
   if (error instanceof NetworkError) {
-    return 'Error de red. Verificá tu conexión e intentá de nuevo.';
+    return 'Error de red. Verifica tu conexion e intenta de nuevo.';
   }
 
   if (error instanceof Error) {
     return error.message;
   }
 
-  return 'Ocurrió un error inesperado';
+  return 'Ocurrio un error inesperado';
 }
 
 export function RoutineContextProvider({ children }: { children: React.ReactNode }) {

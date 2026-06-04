@@ -1,0 +1,30 @@
+schema: spec-driven
+
+context: |
+  Tech stack: React Native + Expo (SDK 54) + TypeScript + Firebase (Firestore + Auth)
+  Architecture: Clean Architecture / Hexagonal
+  Testing: Manual / TBD
+  Style: Functional components, React Context + custom hooks, Spanish UI labels
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+  design:
+    - Include sequence diagrams for complex flows
+    - Document architecture decisions with rationale
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+  apply:
+    - Follow existing code patterns (use cases, repositories, hooks, screens)
+    tdd: false
+    test_command: ""
+  verify:
+    test_command: ""
+    build_command: "npx expo start --no-dev --minify"
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas

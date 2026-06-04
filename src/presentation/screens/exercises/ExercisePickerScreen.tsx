@@ -90,7 +90,7 @@ export function ExercisePickerScreen({ navigation }: RoutineScreenProps<'Exercis
     clearError,
   } = useExercises();
 
-  const { selectedIds, toggle, getSelected, clear } = useExercisePicker();
+  const { selectedIds, toggle, getSelected, clear, targetDayIndex } = useExercisePicker();
 
   const selectedCount = selectedIds.length;
 

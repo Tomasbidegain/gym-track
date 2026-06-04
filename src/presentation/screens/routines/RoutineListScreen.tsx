@@ -16,17 +16,18 @@ const muscleGroupLabels: Record<string, string> = {
   chest: 'Pecho',
   back: 'Espalda',
   shoulders: 'Hombros',
-  biceps: 'Bíceps',
-  triceps: 'Tríceps',
+  biceps: 'Biceps',
+  triceps: 'Triceps',
   legs: 'Piernas',
   core: 'Core',
   forearms: 'Antebrazos',
-  glutes: 'Glúteos',
+  glutes: 'Gluteos',
   calves: 'Gemelos',
 };
 
 function getMuscleGroupBadges(routine: Routine): string[] {
-  const groups = new Set(routine.exercises.map((ex) => ex.muscleGroup));
+  const allExercises = routine.days.flatMap((d) => d.exercises);
+  const groups = new Set(allExercises.map((ex) => ex.muscleGroup));
   return Array.from(groups).slice(0, 3);
 }
 
@@ -77,7 +78,7 @@ export function RoutineListScreen({ navigation }: RoutineScreenProps<'RoutineLis
       clearError();
       Alert.alert(
         'Eliminar rutina',
-        `¿Estás seguro de que querés eliminar "${routine.name}"?`,
+        `Estas seguro de que queres eliminar "${routine.name}"?`,
         [
           { text: 'Cancelar', style: 'cancel' },
           {
@@ -111,6 +112,7 @@ export function RoutineListScreen({ navigation }: RoutineScreenProps<'RoutineLis
   const renderItem = useCallback(
     ({ item }: { item: Routine }) => {
       const badges = getMuscleGroupBadges(item);
+      const totalExercises = item.days.reduce((sum, d) => sum + d.exercises.length, 0);
       return (
         <TouchableOpacity
           activeOpacity={0.8}
@@ -120,9 +122,9 @@ export function RoutineListScreen({ navigation }: RoutineScreenProps<'RoutineLis
           style={styles.card}
         >
           <Text style={styles.name}>{item.name}</Text>
-          <Text style={styles.exerciseCount}>
-            {item.exercises.length}{' '}
-            {item.exercises.length === 1 ? 'ejercicio' : 'ejercicios'}
+          <Text style={styles.dayCount}>
+            {item.days.length} {item.days.length === 1 ? 'dia' : 'dias'}
+            {totalExercises > 0 && ` · ${totalExercises} ejercicios`}
           </Text>
           <View style={styles.badgesRow}>
             {badges.map((group) => (
@@ -132,8 +134,8 @@ export function RoutineListScreen({ navigation }: RoutineScreenProps<'RoutineLis
                 </Text>
               </View>
             ))}
-            {item.exercises.length > badges.length && (
-              <Text style={styles.moreBadge}>+{item.exercises.length - badges.length}</Text>
+            {badges.length > 0 && totalExercises > badges.length && (
+              <Text style={styles.moreBadge}>+{totalExercises - badges.length}</Text>
             )}
           </View>
         </TouchableOpacity>
@@ -154,9 +156,9 @@ export function RoutineListScreen({ navigation }: RoutineScreenProps<'RoutineLis
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyTitle}>No tenés rutinas</Text>
+            <Text style={styles.emptyTitle}>No tenes rutinas</Text>
             <Text style={styles.emptySubtitle}>
-              Creá una para empezar a entrenar con orden
+              Crea una para empezar a entrenar con orden
             </Text>
           </View>
         }
@@ -196,7 +198,7 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
     marginBottom: 4,
   },
-  exerciseCount: {
+  dayCount: {
     fontSize: 13,
     color: '#888',
     marginBottom: 8,

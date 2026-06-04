@@ -29,6 +29,7 @@ export type { IRoutineRepository } from './repositories/IRoutineRepository';
 
 export type {
   Routine,
+  RoutineDay,
   RoutineExercise,
   RoutineValidationResult,
 } from './entities/Routine';
