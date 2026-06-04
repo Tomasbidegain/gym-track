@@ -61,6 +61,22 @@ export class FirestoreUserMetadataRepository implements IUserMetadataRepository 
     }
   }
 
+  /** Get the user's display name from Firestore metadata. */
+  async getDisplayName(uid: string): Promise<string | null> {
+    try {
+      const docRef = doc(this.firestore, metadataPath(uid));
+      const docSnap = await getDoc(docRef);
+      if (!docSnap.exists()) {
+        return null;
+      }
+      const data = docSnap.data();
+      const displayName = data?.displayName;
+      return typeof displayName === 'string' ? displayName : null;
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
   private handleError(error: unknown): Error {
     if (
       error instanceof Error &&
