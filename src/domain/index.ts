@@ -25,6 +25,18 @@ export { validateAuthCredentials } from './entities/AuthCredentials';
 export type { IAuthRepository } from './repositories/IAuthRepository';
 export type { IExerciseRepository } from './repositories/IExerciseRepository';
 export type { IUserMetadataRepository } from './repositories/IUserMetadataRepository';
+export type { IRoutineRepository } from './repositories/IRoutineRepository';
+
+export type {
+  Routine,
+  RoutineExercise,
+  RoutineValidationResult,
+} from './entities/Routine';
+export {
+  validateRoutineInput,
+  isOrphaned,
+  generateDuplicateName,
+} from './entities/Routine';
 
 export {
   AuthError,
@@ -37,6 +49,10 @@ export {
 } from './errors/AuthError';
 export { ValidationError } from './errors/ValidationError';
 export { NetworkError } from './errors/NetworkError';
+export {
+  RoutineNotFoundError,
+  DuplicateRoutineNameError,
+} from './errors/RoutineError';
 
 export { RegisterUser } from './usecases/auth/RegisterUser';
 export { LoginUser } from './usecases/auth/LoginUser';
@@ -51,3 +67,12 @@ export { UpdateExercise } from './usecases/exercise/UpdateExercise';
 export type { UpdateExerciseInput } from './usecases/exercise/UpdateExercise';
 export { DeleteExercise } from './usecases/exercise/DeleteExercise';
 export { SeedExercises } from './usecases/exercise/SeedExercises';
+
+export { GetRoutines } from './usecases/routine/GetRoutines';
+export { GetRoutineById } from './usecases/routine/GetRoutineById';
+export { CreateRoutine } from './usecases/routine/CreateRoutine';
+export type { CreateRoutineInput } from './usecases/routine/CreateRoutine';
+export { UpdateRoutine } from './usecases/routine/UpdateRoutine';
+export type { UpdateRoutineInput } from './usecases/routine/UpdateRoutine';
+export { DeleteRoutine } from './usecases/routine/DeleteRoutine';
+export { DuplicateRoutine } from './usecases/routine/DuplicateRoutine';
