@@ -7,7 +7,7 @@ interface ActivityHeatmapProps {
   days?: number;
 }
 
-export function ActivityHeatmap({ sessions, days = 90 }: ActivityHeatmapProps) {
+export function ActivityHeatmap({ sessions, days = 30 }: ActivityHeatmapProps) {
   const heatmapData = useMemo(() => {
     const now = new Date();
     const data = [];

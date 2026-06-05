@@ -25,7 +25,6 @@ interface ExerciseProgress {
 }
 
 export function ProgressScreen({ navigation }: MainAppTabScreenProps<'Progress'>) {
-  console.log('🔥 PROGRESS SCREEN RENDER - v2.1');
   const { sessions } = useWorkoutSessionContext();
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('month');
 
@@ -128,8 +127,6 @@ export function ProgressScreen({ navigation }: MainAppTabScreenProps<'Progress'>
 
       streak = currentStreak;
     }
-
-    console.log('📊 Stats calculados:', { totalWorkouts, weeklyVolume, globalPR, streak, monthAgo });
 
     return {
       totalWorkouts,
@@ -302,7 +299,7 @@ export function ProgressScreen({ navigation }: MainAppTabScreenProps<'Progress'>
         )}
 
         {/* Section 3: Activity Heatmap */}
-        <ActivityHeatmap sessions={allCompletedSessions} days={90} />
+        <ActivityHeatmap sessions={allCompletedSessions} days={30} />
       </ScrollView>
     </View>
   );
