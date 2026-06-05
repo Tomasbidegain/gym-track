@@ -299,7 +299,7 @@ export function ProgressScreen({ navigation }: MainAppTabScreenProps<'Progress'>
         )}
 
         {/* Section 3: Activity Heatmap */}
-        <ActivityHeatmap sessions={allCompletedSessions} days={30} />
+        <ActivityHeatmap sessions={allCompletedSessions} days={90} />
       </ScrollView>
     </View>
   );

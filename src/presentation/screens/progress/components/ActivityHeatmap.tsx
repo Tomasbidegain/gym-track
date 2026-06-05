@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import type { WorkoutSession } from '../../../../domain/entities/WorkoutSession';
 
 interface ActivityHeatmapProps {
@@ -7,13 +7,12 @@ interface ActivityHeatmapProps {
   days?: number;
 }
 
-export function ActivityHeatmap({ sessions, days = 30 }: ActivityHeatmapProps) {
+export function ActivityHeatmap({ sessions, days = 90 }: ActivityHeatmapProps) {
   const heatmapData = useMemo(() => {
     const now = new Date();
-    const data = [];
     
-    // Calcular el inicio del período
-    const startDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+    // Calcular el inicio del período (incluyendo hoy)
+    const startDate = new Date(now.getTime() - (days - 1) * 24 * 60 * 60 * 1000);
     
     // Encontrar el domingo anterior al inicio para que el grid empiece en domingo
     const startDay = startDate.getDay();
@@ -23,7 +22,10 @@ export function ActivityHeatmap({ sessions, days = 30 }: ActivityHeatmapProps) {
     const weeks = [];
     let currentWeek = [];
     
-    for (let i = 0; i < days + startDay; i++) {
+    // Loop hasta hoy (inclusive) - days + startDay para cubrir desde adjustedStart hasta hoy
+    const totalIterations = days + startDay;
+    
+    for (let i = 0; i < totalIterations; i++) {
       const date = new Date(adjustedStart.getTime() + i * 24 * 60 * 60 * 1000);
       const dateStr = date.toISOString().split('T')[0];
       
@@ -112,31 +114,41 @@ export function ActivityHeatmap({ sessions, days = 30 }: ActivityHeatmapProps) {
       <View style={styles.heatmapContainer}>
         {/* Day labels */}
         <View style={styles.dayLabels}>
+          <Text style={styles.dayLabel}>D</Text>
           <Text style={styles.dayLabel}>L</Text>
           <Text style={styles.dayLabel}>M</Text>
           <Text style={styles.dayLabel}>M</Text>
           <Text style={styles.dayLabel}>J</Text>
           <Text style={styles.dayLabel}>V</Text>
           <Text style={styles.dayLabel}>S</Text>
-          <Text style={styles.dayLabel}>D</Text>
         </View>
         
-        {/* Weeks */}
-        <View style={styles.weeksContainer}>
-          {heatmapData.map((week, weekIndex) => (
-            <View key={weekIndex} style={styles.week}>
-              {week.map((day, dayIndex) => (
-                <View
-                  key={dayIndex}
-                  style={[
-                    styles.dayCell,
-                    { backgroundColor: getIntensityColor(day.volume) },
-                  ]}
-                />
-              ))}
-            </View>
-          ))}
-        </View>
+        {/* Weeks - scrollable horizontally */}
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.weeksScrollContainer}
+        >
+          <View style={styles.weeksContainer}>
+            {heatmapData.map((week, weekIndex) => (
+              <View key={weekIndex} style={styles.week}>
+                {week.map((day, dayIndex) => {
+                  const isToday = day.date.toISOString().split('T')[0] === new Date().toISOString().split('T')[0];
+                  return (
+                    <View
+                      key={dayIndex}
+                      style={[
+                        styles.dayCell,
+                        { backgroundColor: getIntensityColor(day.volume) },
+                        isToday && styles.todayCell,
+                      ]}
+                    />
+                  );
+                })}
+              </View>
+            ))}
+          </View>
+        </ScrollView>
       </View>
       
       {/* Legend */}
@@ -197,6 +209,9 @@ const styles = StyleSheet.create({
     height: 12,
     lineHeight: 12,
   },
+  weeksScrollContainer: {
+    paddingRight: 8,
+  },
   weeksContainer: {
     flexDirection: 'row',
     gap: 2,
@@ -208,6 +223,10 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 2,
+  },
+  todayCell: {
+    borderWidth: 1.5,
+    borderColor: '#2f95dc',
   },
   legend: {
     flexDirection: 'row',
