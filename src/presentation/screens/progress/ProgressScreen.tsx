@@ -10,7 +10,7 @@ import type { MainAppTabScreenProps } from '../../navigation/types';
 import { useWorkoutSessionContext } from '../../context/WorkoutSessionContext';
 import { StatsOverviewCard } from './components/StatsOverviewCard';
 import { TopExerciseCard } from './components/TopExerciseCard';
-import { ActivityHeatmap } from './components/ActivityHeatmap';
+import { CalendarView } from './components/CalendarView';
 
 type TimeFilter = 'week' | 'month' | 'all';
 
@@ -298,8 +298,8 @@ export function ProgressScreen({ navigation }: MainAppTabScreenProps<'Progress'>
           </View>
         )}
 
-        {/* Section 3: Activity Heatmap */}
-        <ActivityHeatmap sessions={allCompletedSessions} days={90} />
+        {/* Section 3: Calendar View */}
+        <CalendarView sessions={allCompletedSessions} />
       </ScrollView>
     </View>
   );
