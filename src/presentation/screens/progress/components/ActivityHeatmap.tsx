@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import type { WorkoutSession } from '../../../../domain/entities/WorkoutSession';
 
 interface ActivityHeatmapProps {
@@ -8,6 +8,8 @@ interface ActivityHeatmapProps {
 }
 
 export function ActivityHeatmap({ sessions, days = 90 }: ActivityHeatmapProps) {
+  const screenWidth = Dimensions.get('window').width;
+  
   const heatmapData = useMemo(() => {
     const now = new Date();
     
@@ -97,6 +99,19 @@ export function ActivityHeatmap({ sessions, days = 90 }: ActivityHeatmapProps) {
   
   const monthLabels = getMonthLabels();
   
+  // Calculate cell size to fill screen width
+  const cellSize = useMemo(() => {
+    const containerPadding = 32; // 16 * 2
+    const dayLabelsWidth = 20;
+    const weekGap = 2;
+    const availableWidth = screenWidth - containerPadding - dayLabelsWidth;
+    const numWeeks = heatmapData.length;
+    const totalWeekGaps = (numWeeks - 1) * weekGap;
+    const weekWidth = (availableWidth - totalWeekGaps) / numWeeks;
+    const cellWidth = (weekWidth - 6 * 2) / 7; // 6 day gaps of 2px
+    return Math.max(Math.floor(cellWidth), 4); // minimum 4px
+  }, [screenWidth, heatmapData]);
+  
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Actividad (últimos {days} días)</Text>
@@ -113,42 +128,41 @@ export function ActivityHeatmap({ sessions, days = 90 }: ActivityHeatmapProps) {
       {/* Heatmap grid */}
       <View style={styles.heatmapContainer}>
         {/* Day labels */}
-        <View style={styles.dayLabels}>
-          <Text style={styles.dayLabel}>D</Text>
-          <Text style={styles.dayLabel}>L</Text>
-          <Text style={styles.dayLabel}>M</Text>
-          <Text style={styles.dayLabel}>M</Text>
-          <Text style={styles.dayLabel}>J</Text>
-          <Text style={styles.dayLabel}>V</Text>
-          <Text style={styles.dayLabel}>S</Text>
+        <View style={[styles.dayLabels, { height: cellSize * 7 + 6 * 2 }]}>
+          <View style={styles.dayLabel} />
+          <Text style={styles.dayLabelText}>D</Text>
+          <Text style={styles.dayLabelText}>L</Text>
+          <Text style={styles.dayLabelText}>M</Text>
+          <Text style={styles.dayLabelText}>M</Text>
+          <Text style={styles.dayLabelText}>J</Text>
+          <Text style={styles.dayLabelText}>V</Text>
+          <Text style={styles.dayLabelText}>S</Text>
         </View>
         
-        {/* Weeks - scrollable horizontally */}
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.weeksScrollContainer}
-        >
-          <View style={styles.weeksContainer}>
-            {heatmapData.map((week, weekIndex) => (
-              <View key={weekIndex} style={styles.week}>
-                {week.map((day, dayIndex) => {
-                  const isToday = day.date.toISOString().split('T')[0] === new Date().toISOString().split('T')[0];
-                  return (
-                    <View
-                      key={dayIndex}
-                      style={[
-                        styles.dayCell,
-                        { backgroundColor: getIntensityColor(day.volume) },
-                        isToday && styles.todayCell,
-                      ]}
-                    />
-                  );
-                })}
-              </View>
-            ))}
-          </View>
-        </ScrollView>
+        {/* Weeks - fill full width */}
+        <View style={styles.weeksContainer}>
+          {heatmapData.map((week, weekIndex) => (
+            <View key={weekIndex} style={styles.week}>
+              {week.map((day, dayIndex) => {
+                const isToday = day.date.toISOString().split('T')[0] === new Date().toISOString().split('T')[0];
+                return (
+                  <View
+                    key={dayIndex}
+                    style={[
+                      styles.dayCell,
+                      { 
+                        backgroundColor: getIntensityColor(day.volume),
+                        width: cellSize,
+                        height: cellSize,
+                      },
+                      isToday && styles.todayCell,
+                    ]}
+                  />
+                );
+              })}
+            </View>
+          ))}
+        </View>
       </View>
       
       {/* Legend */}
@@ -200,28 +214,27 @@ const styles = StyleSheet.create({
   },
   dayLabels: {
     marginRight: 4,
-    justifyContent: 'space-between',
-    height: 98,
+    justifyContent: 'flex-start',
   },
   dayLabel: {
+    height: 2,
+  },
+  dayLabelText: {
     fontSize: 9,
     color: '#888',
-    height: 12,
-    lineHeight: 12,
-  },
-  weeksScrollContainer: {
-    paddingRight: 8,
+    height: 14,
+    textAlign: 'center',
   },
   weeksContainer: {
+    flex: 1,
     flexDirection: 'row',
+    justifyContent: 'space-between',
     gap: 2,
   },
   week: {
     gap: 2,
   },
   dayCell: {
-    width: 12,
-    height: 12,
     borderRadius: 2,
   },
   todayCell: {
