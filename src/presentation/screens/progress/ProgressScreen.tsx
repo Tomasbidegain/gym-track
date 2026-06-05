@@ -1,16 +1,16 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Dimensions,
 } from 'react-native';
-import { LineChart } from 'react-native-chart-kit';
 import type { MainAppTabScreenProps } from '../../navigation/types';
 import { useWorkoutSessionContext } from '../../context/WorkoutSessionContext';
-import { useExercises } from '../../hooks/useExercises';
+import { StatsOverviewCard } from './components/StatsOverviewCard';
+import { TopExerciseCard } from './components/TopExerciseCard';
+import { ActivityHeatmap } from './components/ActivityHeatmap';
 
 type TimeFilter = 'week' | 'month' | 'all';
 
@@ -21,60 +21,15 @@ interface ExerciseProgress {
     date: Date;
     maxWeight: number;
     totalVolume: number;
-    totalSets: number;
   }>;
 }
 
 export function ProgressScreen({ navigation }: MainAppTabScreenProps<'Progress'>) {
   const { sessions } = useWorkoutSessionContext();
-  const { exercises } = useExercises();
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('month');
-  const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
 
-  const screenWidth = Dimensions.get('window').width;
-
-  const exerciseProgress = useMemo(() => {
-    const progressMap = new Map<string, ExerciseProgress>();
-
-    sessions.forEach((session) => {
-      if (!session.isCompleted) return;
-
-      session.exercises.forEach((exercise) => {
-        if (!progressMap.has(exercise.exerciseId)) {
-          progressMap.set(exercise.exerciseId, {
-            exerciseId: exercise.exerciseId,
-            exerciseName: exercise.exerciseName,
-            sessions: [],
-          });
-        }
-
-        const progress = progressMap.get(exercise.exerciseId)!;
-        const completedSets = exercise.sets.filter((s) => s.completed);
-        
-        if (completedSets.length > 0) {
-          const maxWeight = Math.max(...completedSets.map((s) => s.weight));
-          const totalVolume = completedSets.reduce((sum, s) => sum + s.weight * s.reps, 0);
-          const totalSets = completedSets.length;
-
-          progress.sessions.push({
-            date: session.startedAt,
-            maxWeight,
-            totalVolume,
-            totalSets,
-          });
-        }
-      });
-    });
-
-    // Sort sessions by date
-    progressMap.forEach((progress) => {
-      progress.sessions.sort((a, b) => a.date.getTime() - b.date.getTime());
-    });
-
-    return Array.from(progressMap.values());
-  }, [sessions]);
-
-  const filteredProgress = useMemo(() => {
+  // Filter sessions by time
+  const filteredSessions = useMemo(() => {
     const now = new Date();
     let startDate: Date;
 
@@ -90,26 +45,146 @@ export function ProgressScreen({ navigation }: MainAppTabScreenProps<'Progress'>
         break;
     }
 
+    return sessions.filter(
+      (s) => s.isCompleted && s.completedAt && s.completedAt >= startDate
+    );
+  }, [sessions, timeFilter]);
+
+  // Calculate general stats
+  const generalStats = useMemo(() => {
+    const totalWorkouts = filteredSessions.length;
+    
+    const weeklyVolume = filteredSessions.reduce(
+      (sum, s) => sum + s.totalVolume,
+      0
+    );
+
+    // PR Global
+    let globalPR = 0;
+    filteredSessions.forEach((session) => {
+      session.exercises.forEach((exercise) => {
+        const maxWeight = Math.max(...exercise.sets.map((s) => s.weight));
+        if (maxWeight > globalPR) globalPR = maxWeight;
+      });
+    });
+
+    // Streak calculation
+    const workoutDates = new Set(
+      filteredSessions.map((s) => {
+        const d = s.completedAt || s.startedAt;
+        return d.toISOString().split('T')[0];
+      })
+    );
+    
+    const sortedDates = Array.from(workoutDates).sort();
+    let streak = 0;
+    let currentStreak = 0;
+    
+    if (sortedDates.length > 0) {
+      const today = new Date().toISOString().split('T')[0];
+      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split('T')[0];
+      
+      // Check if today or yesterday was a workout day
+      const hasRecentWorkout = sortedDates.includes(today) || sortedDates.includes(yesterday);
+      
+      if (hasRecentWorkout) {
+        currentStreak = 1;
+        for (let i = sortedDates.length - 1; i > 0; i--) {
+          const current = new Date(sortedDates[i]);
+          const previous = new Date(sortedDates[i - 1]);
+          const diffDays = (current.getTime() - previous.getTime()) / (1000 * 60 * 60 * 24);
+          
+          if (diffDays === 1) {
+            currentStreak++;
+          } else {
+            break;
+          }
+        }
+      }
+      
+      streak = currentStreak;
+    }
+
+    return {
+      totalWorkouts,
+      weeklyVolume,
+      globalPR,
+      streak,
+    };
+  }, [filteredSessions]);
+
+  // Calculate exercise progress
+  const exerciseProgress = useMemo(() => {
+    const progressMap = new Map<string, ExerciseProgress>();
+
+    filteredSessions.forEach((session) => {
+      session.exercises.forEach((exercise) => {
+        if (!progressMap.has(exercise.exerciseId)) {
+          progressMap.set(exercise.exerciseId, {
+            exerciseId: exercise.exerciseId,
+            exerciseName: exercise.exerciseName,
+            sessions: [],
+          });
+        }
+
+        const progress = progressMap.get(exercise.exerciseId)!;
+        const completedSets = exercise.sets.filter((s) => s.completed);
+
+        if (completedSets.length > 0) {
+          const maxWeight = Math.max(...completedSets.map((s) => s.weight));
+          const totalVolume = completedSets.reduce(
+            (sum, s) => sum + s.weight * s.reps,
+            0
+          );
+
+          progress.sessions.push({
+            date: session.completedAt || session.startedAt,
+            maxWeight,
+            totalVolume,
+          });
+        }
+      });
+    });
+
+    // Sort sessions by date
+    progressMap.forEach((progress) => {
+      progress.sessions.sort((a, b) => a.date.getTime() - b.date.getTime());
+    });
+
+    return Array.from(progressMap.values());
+  }, [filteredSessions]);
+
+  // Top 5 exercises
+  const topExercises = useMemo(() => {
     return exerciseProgress
-      .map((progress) => ({
-        ...progress,
-        sessions: progress.sessions.filter((s) => s.date >= startDate),
-      }))
-      .filter((progress) => progress.sessions.length > 0);
-  }, [exerciseProgress, timeFilter]);
+      .sort((a, b) => b.sessions.length - a.sessions.length)
+      .slice(0, 5)
+      .map((progress) => {
+        const latestSession = progress.sessions[progress.sessions.length - 1];
+        const firstSession = progress.sessions[0];
+        const improvement = latestSession.maxWeight - firstSession.maxWeight;
+        const maxWeight = Math.max(...progress.sessions.map((s) => s.maxWeight));
+        const weightHistory = progress.sessions.map((s) => s.maxWeight);
 
-  const selectedExerciseProgress = useMemo(() => {
-    if (!selectedExercise) return null;
-    return filteredProgress.find((p) => p.exerciseId === selectedExercise);
-  }, [filteredProgress, selectedExercise]);
+        return {
+          exerciseId: progress.exerciseId,
+          exerciseName: progress.exerciseName,
+          maxWeight,
+          sessionsCount: progress.sessions.length,
+          weightHistory,
+          improvement,
+        };
+      });
+  }, [exerciseProgress]);
 
-  const formatDate = (date: Date) => {
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    return `${day}/${month}`;
-  };
+  // All sessions for heatmap (always show all, not filtered by time)
+  const allCompletedSessions = useMemo(() => {
+    return sessions.filter((s) => s.isCompleted);
+  }, [sessions]);
 
-  if (filteredProgress.length === 0) {
+  if (filteredSessions.length === 0) {
     return (
       <View style={styles.container}>
         <View style={styles.emptyContainer}>
@@ -127,135 +202,83 @@ export function ProgressScreen({ navigation }: MainAppTabScreenProps<'Progress'>
       {/* Time Filter */}
       <View style={styles.filterContainer}>
         <TouchableOpacity
-          style={[styles.filterButton, timeFilter === 'week' && styles.filterButtonActive]}
+          style={[
+            styles.filterButton,
+            timeFilter === 'week' && styles.filterButtonActive,
+          ]}
           onPress={() => setTimeFilter('week')}
         >
-          <Text style={[styles.filterText, timeFilter === 'week' && styles.filterTextActive]}>
+          <Text
+            style={[
+              styles.filterText,
+              timeFilter === 'week' && styles.filterTextActive,
+            ]}
+          >
             Semana
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.filterButton, timeFilter === 'month' && styles.filterButtonActive]}
+          style={[
+            styles.filterButton,
+            timeFilter === 'month' && styles.filterButtonActive,
+          ]}
           onPress={() => setTimeFilter('month')}
         >
-          <Text style={[styles.filterText, timeFilter === 'month' && styles.filterTextActive]}>
+          <Text
+            style={[
+              styles.filterText,
+              timeFilter === 'month' && styles.filterTextActive,
+            ]}
+          >
             Mes
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.filterButton, timeFilter === 'all' && styles.filterButtonActive]}
+          style={[
+            styles.filterButton,
+            timeFilter === 'all' && styles.filterButtonActive,
+          ]}
           onPress={() => setTimeFilter('all')}
         >
-          <Text style={[styles.filterText, timeFilter === 'all' && styles.filterTextActive]}>
+          <Text
+            style={[
+              styles.filterText,
+              timeFilter === 'all' && styles.filterTextActive,
+            ]}
+          >
             Todo
           </Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content}>
-        {/* Selected Exercise Chart */}
-        {selectedExerciseProgress && (
-          <View style={styles.chartCard}>
-            <Text style={styles.chartTitle}>
-              {selectedExerciseProgress.exerciseName}
-            </Text>
-            <Text style={styles.chartSubtitle}>Peso máximo (kg)</Text>
-            {selectedExerciseProgress.sessions.length > 1 ? (
-              <LineChart
-                data={{
-                  labels: selectedExerciseProgress.sessions.map((s) => formatDate(s.date)),
-                  datasets: [
-                    {
-                      data: selectedExerciseProgress.sessions.map((s) => s.maxWeight),
-                    },
-                  ],
-                }}
-                width={screenWidth - 48}
-                height={220}
-                chartConfig={{
-                  backgroundColor: '#ffffff',
-                  backgroundGradientFrom: '#ffffff',
-                  backgroundGradientTo: '#ffffff',
-                  color: (opacity = 1) => `rgba(47, 149, 220, ${opacity})`,
-                  labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-                  propsForDots: {
-                    r: '6',
-                    strokeWidth: '2',
-                    stroke: '#2f95dc',
-                  },
-                }}
-                bezier
-                style={styles.chart}
+        {/* Section 1: Stats Overview */}
+        <StatsOverviewCard
+          totalWorkouts={generalStats.totalWorkouts}
+          weeklyVolume={generalStats.weeklyVolume}
+          globalPR={generalStats.globalPR}
+          streak={generalStats.streak}
+        />
+
+        {/* Section 2: Top Exercises */}
+        {topExercises.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Ejercicios Principales</Text>
+            {topExercises.map((exercise) => (
+              <TopExerciseCard
+                key={exercise.exerciseId}
+                exerciseName={exercise.exerciseName}
+                maxWeight={exercise.maxWeight}
+                sessionsCount={exercise.sessionsCount}
+                weightHistory={exercise.weightHistory}
+                improvement={exercise.improvement}
               />
-            ) : (
-              <View style={styles.singleSessionContainer}>
-                <Text style={styles.singleSessionText}>
-                  {selectedExerciseProgress.sessions[0]?.maxWeight} kg
-                </Text>
-                <Text style={styles.singleSessionDate}>
-                  {selectedExerciseProgress.sessions[0] && formatDate(selectedExerciseProgress.sessions[0].date)}
-                </Text>
-              </View>
-            )}
-            <TouchableOpacity
-              style={styles.closeChartButton}
-              onPress={() => setSelectedExercise(null)}
-            >
-              <Text style={styles.closeChartText}>Cerrar gráfico</Text>
-            </TouchableOpacity>
+            ))}
           </View>
         )}
 
-        {/* Exercise List */}
-        <Text style={styles.sectionTitle}>Ejercicios</Text>
-        {filteredProgress.map((progress) => {
-          const latestSession = progress.sessions[progress.sessions.length - 1];
-          const firstSession = progress.sessions[0];
-          const improvement = latestSession.maxWeight - firstSession.maxWeight;
-
-          return (
-            <TouchableOpacity
-              key={progress.exerciseId}
-              style={styles.exerciseCard}
-              onPress={() => setSelectedExercise(progress.exerciseId)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.exerciseHeader}>
-                <Text style={styles.exerciseName}>{progress.exerciseName}</Text>
-                <Text style={styles.sessionCount}>
-                  {progress.sessions.length} sesión{progress.sessions.length !== 1 ? 'es' : ''}
-                </Text>
-              </View>
-
-              <View style={styles.statsRow}>
-                <View style={styles.stat}>
-                  <Text style={styles.statLabel}>Último</Text>
-                  <Text style={styles.statValue}>{latestSession.maxWeight} kg</Text>
-                </View>
-                <View style={styles.stat}>
-                  <Text style={styles.statLabel}>Mejor</Text>
-                  <Text style={styles.statValue}>
-                    {Math.max(...progress.sessions.map((s) => s.maxWeight))} kg
-                  </Text>
-                </View>
-                {improvement !== 0 && (
-                  <View style={styles.stat}>
-                    <Text style={styles.statLabel}>Progreso</Text>
-                    <Text
-                      style={[
-                        styles.statValue,
-                        { color: improvement > 0 ? '#4caf50' : '#f44336' },
-                      ]}
-                    >
-                      {improvement > 0 ? '+' : ''}
-                      {improvement} kg
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </TouchableOpacity>
-          );
-        })}
+        {/* Section 3: Activity Heatmap */}
+        <ActivityHeatmap sessions={allCompletedSessions} days={90} />
       </ScrollView>
     </View>
   );
@@ -313,109 +336,13 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
   },
-  chartCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  chartTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1a1a1a',
-    marginBottom: 4,
-  },
-  chartSubtitle: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 12,
-  },
-  chart: {
-    marginVertical: 8,
-    borderRadius: 16,
-  },
-  closeChartButton: {
-    marginTop: 12,
-    paddingVertical: 10,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  closeChartText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-  },
-  singleSessionContainer: {
-    alignItems: 'center',
-    paddingVertical: 40,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
-    marginVertical: 8,
-  },
-  singleSessionText: {
-    fontSize: 36,
-    fontWeight: '800',
-    color: '#2f95dc',
-  },
-  singleSessionDate: {
-    fontSize: 14,
-    color: '#888',
-    marginTop: 8,
+  section: {
+    marginBottom: 8,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: '#333',
     marginBottom: 12,
-  },
-  exerciseCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  exerciseHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  exerciseName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1a1a1a',
-    flex: 1,
-  },
-  sessionCount: {
-    fontSize: 13,
-    color: '#888',
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  stat: {
-    flex: 1,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#888',
-    marginBottom: 4,
-  },
-  statValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1a1a1a',
   },
 });
