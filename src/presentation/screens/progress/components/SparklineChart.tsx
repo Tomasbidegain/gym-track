@@ -13,12 +13,12 @@ export function SparklineChart({
   data,
   width,
   height = 60,
-  color = '#2f95dc',
+  color: lineColor = '#2f95dc',
 }: SparklineChartProps) {
   if (data.length < 2) {
     return (
       <View style={[styles.container, { width, height }]}>
-        <View style={[styles.singlePoint, { backgroundColor: color }]} />
+        <View style={[styles.singlePoint, { backgroundColor: lineColor }]} />
       </View>
     );
   }
@@ -41,11 +41,11 @@ export function SparklineChart({
       withHorizontalLabels={false}
       withDots={false}
       chartConfig={{
-        backgroundColor: 'transparent',
-        backgroundGradientFrom: 'transparent',
-        backgroundGradientTo: 'transparent',
+        backgroundColor: '#ffffff',
+        backgroundGradientFrom: '#ffffff',
+        backgroundGradientTo: '#ffffff',
         color: (opacity = 1) => {
-          const hex = color.replace('#', '');
+          const hex = lineColor.replace('#', '');
           const r = parseInt(hex.substring(0, 2), 16);
           const g = parseInt(hex.substring(2, 4), 16);
           const b = parseInt(hex.substring(4, 6), 16);

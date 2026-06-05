@@ -52,50 +52,57 @@ export function ProgressScreen({ navigation }: MainAppTabScreenProps<'Progress'>
 
   // Calculate general stats
   const generalStats = useMemo(() => {
-    const totalWorkouts = filteredSessions.length;
-    
-    const weeklyVolume = filteredSessions.reduce(
-      (sum, s) => sum + s.totalVolume,
-      0
-    );
+    const completedSessions = sessions.filter((s) => s.isCompleted);
 
-    // PR Global
+    // Total unique workout days (not sessions)
+    const workoutDates = new Set(
+      completedSessions.map((s) => {
+        const d = s.completedAt || s.startedAt;
+        return d.toISOString().split('T')[0];
+      })
+    );
+    const totalWorkouts = workoutDates.size;
+
+    // Weekly volume (last 7 days, regardless of filter)
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const weeklyVolume = completedSessions
+      .filter((s) => {
+        const d = s.completedAt || s.startedAt;
+        return d >= weekAgo;
+      })
+      .reduce((sum, s) => sum + s.totalVolume, 0);
+
+    // PR Global (all time)
     let globalPR = 0;
-    filteredSessions.forEach((session) => {
+    completedSessions.forEach((session) => {
       session.exercises.forEach((exercise) => {
         const maxWeight = Math.max(...exercise.sets.map((s) => s.weight));
         if (maxWeight > globalPR) globalPR = maxWeight;
       });
     });
 
-    // Streak calculation
-    const workoutDates = new Set(
-      filteredSessions.map((s) => {
-        const d = s.completedAt || s.startedAt;
-        return d.toISOString().split('T')[0];
-      })
-    );
-    
+    // Streak calculation (all time)
     const sortedDates = Array.from(workoutDates).sort();
     let streak = 0;
     let currentStreak = 0;
-    
+
     if (sortedDates.length > 0) {
       const today = new Date().toISOString().split('T')[0];
       const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000)
         .toISOString()
         .split('T')[0];
-      
+
       // Check if today or yesterday was a workout day
       const hasRecentWorkout = sortedDates.includes(today) || sortedDates.includes(yesterday);
-      
+
       if (hasRecentWorkout) {
         currentStreak = 1;
         for (let i = sortedDates.length - 1; i > 0; i--) {
           const current = new Date(sortedDates[i]);
           const previous = new Date(sortedDates[i - 1]);
           const diffDays = (current.getTime() - previous.getTime()) / (1000 * 60 * 60 * 24);
-          
+
           if (diffDays === 1) {
             currentStreak++;
           } else {
@@ -103,7 +110,7 @@ export function ProgressScreen({ navigation }: MainAppTabScreenProps<'Progress'>
           }
         }
       }
-      
+
       streak = currentStreak;
     }
 
@@ -113,7 +120,7 @@ export function ProgressScreen({ navigation }: MainAppTabScreenProps<'Progress'>
       globalPR,
       streak,
     };
-  }, [filteredSessions]);
+  }, [sessions]);
 
   // Calculate exercise progress
   const exerciseProgress = useMemo(() => {
