@@ -54,18 +54,26 @@ export function ProgressScreen({ navigation }: MainAppTabScreenProps<'Progress'>
   const generalStats = useMemo(() => {
     const completedSessions = sessions.filter((s) => s.isCompleted);
 
-    // Total unique workout days (not sessions)
-    const workoutDates = new Set(
-      completedSessions.map((s) => {
-        const d = s.completedAt || s.startedAt;
-        return d.toISOString().split('T')[0];
-      })
+    // Now and month ago
+    const now = new Date();
+    const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    // Total unique workout days in the last month (not sessions)
+    const monthWorkoutDates = new Set(
+      completedSessions
+        .filter((s) => {
+          const d = s.completedAt || s.startedAt;
+          return d >= monthAgo;
+        })
+        .map((s) => {
+          const d = s.completedAt || s.startedAt;
+          return d.toISOString().split('T')[0];
+        })
     );
-    const totalWorkouts = workoutDates.size;
+    const totalWorkouts = monthWorkoutDates.size;
 
     // Weekly volume (last 7 days, regardless of filter)
-    const now = new Date();
-    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const weeklyVolume = completedSessions
       .filter((s) => {
         const d = s.completedAt || s.startedAt;
@@ -83,7 +91,13 @@ export function ProgressScreen({ navigation }: MainAppTabScreenProps<'Progress'>
     });
 
     // Streak calculation (all time)
-    const sortedDates = Array.from(workoutDates).sort();
+    const allWorkoutDates = new Set(
+      completedSessions.map((s) => {
+        const d = s.completedAt || s.startedAt;
+        return d.toISOString().split('T')[0];
+      })
+    );
+    const sortedDates = Array.from(allWorkoutDates).sort();
     let streak = 0;
     let currentStreak = 0;
 

@@ -19,7 +19,7 @@ export function StatsOverviewCard({
       <View style={styles.grid}>
         <View style={styles.statCard}>
           <Text style={styles.statValue}>{totalWorkouts}</Text>
-          <Text style={styles.statLabel}>Entrenamientos</Text>
+          <Text style={styles.statLabel}>Entrenamientos (mes)</Text>
         </View>
         <View style={styles.statCard}>
           <Text style={styles.statValue}>{weeklyVolume.toLocaleString()}</Text>
