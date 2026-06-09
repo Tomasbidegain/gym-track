@@ -30,16 +30,27 @@ interface FirestoreRoutineData {
   updatedAt: Timestamp;
 }
 
+function defaultRoutineExercise(ex: RoutineExercise): RoutineExercise {
+  return {
+    ...ex,
+    isTimeBased: ex.isTimeBased ?? false,
+    targetDurationSeconds: ex.targetDurationSeconds ?? 0,
+  };
+}
+
 function toRoutine(id: string, data: FirestoreRoutineData): Routine {
   let days: RoutineDay[];
   if (data.days && data.days.length > 0) {
-    days = data.days;
+    days = data.days.map((day) => ({
+      ...day,
+      exercises: day.exercises.map(defaultRoutineExercise),
+    }));
   } else if (data.exercises && data.exercises.length > 0) {
     days = [
       {
         id: 'day-1',
         name: 'Dia 1',
-        exercises: data.exercises,
+        exercises: data.exercises.map(defaultRoutineExercise),
       },
     ];
   } else {
