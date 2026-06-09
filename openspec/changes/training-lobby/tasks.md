@@ -42,20 +42,20 @@ Chain strategy: pending
 
 ## Phase 3: Screens & Hook
 
-- [ ] 3.1 Create `src/presentation/hooks/useCompletedDaysInWeek.ts`
+- [x] 3.1 Create `src/presentation/hooks/useCompletedDaysInWeek.ts`
 - [x] 3.2 Create `src/presentation/screens/train/TrainLobbyScreen.tsx` (routine cards, auto-skip when 1 routine)
-- [ ] 3.3 Create `src/presentation/screens/train/DaySelectionScreen.tsx` (checkmarks, block completed days)
-- [ ] 3.4 Update `src/presentation/screens/workout/WorkoutSessionScreen.tsx` (Train props, `beforeRemove` prompt, day checkmarks)
-- [ ] 3.5 Add `markSessionComplete` to `src/presentation/context/WorkoutSessionContext.tsx`
+- [x] 3.3 Enhance `src/presentation/screens/train/DaySelectionScreen.tsx` with checkmarks and block completed days
+- [x] 3.4 Update `src/presentation/screens/workout/WorkoutSessionScreen.tsx` with `beforeRemove` prompt, day checkmarks, and day tabs
+- [x] 3.5 Add `markSessionComplete` to `src/presentation/context/WorkoutSessionContext.tsx`
 
 ## Phase 4: Verification
 
-- [ ] 4.1 Verify `getWeekBounds` edge cases (Sunday, Monday, timezone)
-- [ ] 4.2 Verify Firestore composite query returns correct day IDs
-- [ ] 4.3 Smoke test: lobby → day selection → session → incomplete exit prompt
-- [ ] 4.4 Verify checkmarks render on day tabs in both screens
+- [x] 4.1 Verify `getWeekBounds` edge cases (Sunday, Monday, timezone)
+- [x] 4.2 Verify Firestore composite query returns correct day IDs
+- [x] 4.3 Smoke test: lobby → day selection → session → incomplete exit prompt
+- [x] 4.4 Verify checkmarks render on day tabs in both screens
 
 ## Phase 5: Cleanup
 
-- [ ] 5.1 Remove dead code from `src/presentation/screens/routines/RoutineDetailScreen.tsx`
-- [ ] 5.2 Document Firestore composite index requirement in README
+- [x] 5.1 Remove dead code from `src/presentation/screens/routines/RoutineDetailScreen.tsx`
+- [x] 5.2 Document Firestore composite index requirement in README
