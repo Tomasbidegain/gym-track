@@ -200,7 +200,9 @@ function ExerciseCard({
 
       <View style={styles.exerciseDetails}>
         <Text style={styles.detailText}>
-          {exercise.targetSets} series x {exercise.targetReps} reps
+          {exercise.isTimeBased
+            ? `${exercise.targetSets} sets x ${exercise.targetDurationSeconds}s`
+            : `${exercise.targetSets} sets x ${exercise.targetReps} reps`}
         </Text>
         <Text style={styles.detailText}>Descanso: {formatRest(exercise.restSeconds)}</Text>
         {exercise.notes ? <Text style={styles.notesText}>Nota: {exercise.notes}</Text> : null}
