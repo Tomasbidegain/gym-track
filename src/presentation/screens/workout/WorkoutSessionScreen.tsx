@@ -484,8 +484,9 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
               key={d.id}
               style={[
                 styles.dayTab,
-                isActive && styles.dayTabActive,
-                isDayCompleted && styles.dayTabCompleted,
+                isActive && isDayCompleted && styles.dayTabActiveCompleted,
+                isActive && !isDayCompleted && styles.dayTabActive,
+                !isActive && isDayCompleted && styles.dayTabCompleted,
               ]}
               onPress={() => {
                 if (d.id === currentDayId) return;
@@ -496,13 +497,21 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
               <Text
                 style={[
                   styles.dayTabText,
-                  isActive && styles.dayTabTextActive,
-                  isDayCompleted && styles.dayTabTextCompleted,
+                  isActive && isDayCompleted && styles.dayTabTextActiveCompleted,
+                  isActive && !isDayCompleted && styles.dayTabTextActive,
+                  !isActive && isDayCompleted && styles.dayTabTextCompleted,
                 ]}
               >
                 {d.name}
               </Text>
-              {isDayCompleted && <Text style={styles.dayTabCheckmark}>✓</Text>}
+              {isDayCompleted && (
+                <Text style={[
+                  styles.dayTabCheckmark,
+                  isActive && isDayCompleted && styles.dayTabTextActiveCompleted
+                ]}>
+                  ✓
+                </Text>
+              )}
             </TouchableOpacity>
           );
         })}
@@ -741,6 +750,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f9f0',
     borderColor: '#4caf50',
   },
+  dayTabActiveCompleted: {
+    backgroundColor: '#4caf50',
+    borderColor: '#388e3c',
+  },
   dayTabText: {
     fontSize: 13,
     fontWeight: '600',
@@ -751,6 +764,9 @@ const styles = StyleSheet.create({
   },
   dayTabTextCompleted: {
     color: '#4caf50',
+  },
+  dayTabTextActiveCompleted: {
+    color: '#fff',
   },
   dayTabCheckmark: {
     fontSize: 14,
