@@ -76,13 +76,16 @@ function toRoutine(id: string, data: FirestoreRoutineData): Routine {
     days = [];
   }
 
+  const createdAt = data.createdAt?.toDate?.() ?? new Date();
+  const updatedAt = data.updatedAt?.toDate?.() ?? createdAt;
+
   return {
     id,
     name: data.name,
     description: data.description,
     days,
-    createdAt: data.createdAt.toDate(),
-    updatedAt: data.updatedAt.toDate(),
+    createdAt,
+    updatedAt,
   };
 }
 
