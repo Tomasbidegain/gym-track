@@ -31,30 +31,31 @@ type SessionExercise = WorkoutExercise & {
 };
 
 export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'WorkoutSession'>) {
-  const { routineId, dayId } = route.params;
+  const { routineId, dayId: initialDayId } = route.params;
   const { routines, updateRoutine } = useRoutines();
   const { startSession, updateSet, completeSession, markSessionComplete, sessions } = useWorkoutSessionContext();
   const { completedDayIds, isLoading: isLoadingCompletedDays, refresh: refreshCompletedDays } = useCompletedDaysInWeek(routineId);
 
-  // Refresh completed days when screen receives focus (e.g., after switching days)
-  useFocusEffect(
-    React.useCallback(() => {
-      refreshCompletedDays();
-    }, [refreshCompletedDays])
-  );
+  // Local state for current day (no navigation between days)
+  const [currentDayId, setCurrentDayId] = useState(initialDayId);
+
+  // Refresh completed days only once on mount
+  useEffect(() => {
+    refreshCompletedDays();
+  }, [refreshCompletedDays]);
 
   const routine = routines.find((r) => r.id === routineId);
-  const day = routine?.days.find((d) => d.id === dayId);
+  const day = routine?.days.find((d) => d.id === currentDayId);
 
-  const isDayCompleted = completedDayIds.has(dayId);
+  const isDayCompleted = completedDayIds.has(currentDayId);
 
   // Find the completed session for this day (most recent completed this week)
   const completedSession = React.useMemo(() => {
     if (!isDayCompleted) return null;
     return sessions.find(
-      (s) => s.dayId === dayId && s.routineId === routineId && s.isCompleted
+      (s) => s.dayId === currentDayId && s.routineId === routineId && s.isCompleted
     ) || null;
-  }, [isDayCompleted, sessions, dayId, routineId]);
+  }, [isDayCompleted, sessions, currentDayId, routineId]);
 
   const [sessionId, setSessionId] = useState<string | null>(null);
   const activeSession = sessionId ? sessions.find((s) => s.id === sessionId) : null;
@@ -81,7 +82,7 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
   });
   const [isSaving, setIsSaving] = useState(false);
 
-  // When switching to a completed day, merge session set data with routine metadata
+  // When switching days, update exercises based on completion status
   useEffect(() => {
     if (isDayCompleted && completedSession && day) {
       const mergedExercises = day.exercises.map((routineEx) => {
@@ -95,15 +96,16 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
       });
       setExercises(mergedExercises);
       setSessionId(null);
-    } else if (!isDayCompleted && !sessionId && day) {
+    } else if (!isDayCompleted && day) {
       setExercises(
         day.exercises.map((ex) => ({
           ...ex,
           sets: generateSetsFromRoutine(ex),
         }))
       );
+      setSessionId(null);
     }
-  }, [isDayCompleted, completedSession, day, sessionId]);
+  }, [isDayCompleted, completedSession, day, currentDayId]);
 
   // Timer states
   const [timerActive, setTimerActive] = useState(false);
@@ -397,7 +399,7 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
             
             // Update routine with new weights/reps
             const updatedDays: RoutineDay[] = routine.days.map((d) => {
-              if (d.id !== dayId) return d;
+              if (d.id !== currentDayId) return d;
               
               const updatedExercises = d.exercises.map((ex) => {
                 const sessionExercise = exercises.find((se) => se.exerciseId === ex.exerciseId);
@@ -443,7 +445,7 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
         },
       ],
     );
-  }, [sessionId, routine, dayId, exercises, completeSession, updateRoutine, routineId, navigation]);
+  }, [sessionId, routine, currentDayId, exercises, completeSession, updateRoutine, routineId, navigation]);
 
   if (!routine || !day) {
     return (
@@ -476,7 +478,7 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
       >
         {routine.days.map((d) => {
           const isDayCompleted = completedDayIds.has(d.id);
-          const isActive = d.id === dayId;
+          const isActive = d.id === currentDayId;
           return (
             <TouchableOpacity
               key={d.id}
@@ -486,8 +488,8 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
                 isDayCompleted && styles.dayTabCompleted,
               ]}
               onPress={() => {
-                if (d.id === dayId) return;
-                navigation.replace('WorkoutSession', { routineId, dayId: d.id });
+                if (d.id === currentDayId) return;
+                setCurrentDayId(d.id);
               }}
               activeOpacity={0.8}
             >
