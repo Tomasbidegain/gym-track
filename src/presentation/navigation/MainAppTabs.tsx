@@ -4,6 +4,7 @@ import type { MainAppTabParamList } from './types';
 import { ProfileScreen } from '../screens/profile/ProfileScreen';
 import { ExerciseStack } from './ExerciseStack';
 import { RoutineStack } from './RoutineStack';
+import { TrainStack } from './TrainStack';
 import { ProgressScreen } from '../screens/progress/ProgressScreen';
 
 const Tab = createBottomTabNavigator<MainAppTabParamList>();
@@ -34,6 +35,15 @@ export function MainAppTabs() {
         options={{
           title: 'Rutinas',
           tabBarLabel: 'Rutinas',
+          headerShown: false,
+        }}
+      />
+      <Tab.Screen
+        name="Train"
+        component={TrainStack}
+        options={{
+          title: 'Entrenar',
+          tabBarLabel: 'Entrenar',
           headerShown: false,
         }}
       />

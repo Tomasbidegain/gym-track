@@ -19,13 +19,19 @@ export type RoutineStackParamList = {
   RoutineCreate: undefined;
   RoutineEdit: { routineId: string };
   ExercisePicker: { dayIndex?: number };
-  WorkoutSession: { routineId: string; dayIndex: number };
+};
+
+export type TrainStackParamList = {
+  TrainLobby: undefined;
+  DaySelection: { routineId: string };
+  WorkoutSession: { routineId: string; dayId: string };
 };
 
 export type MainAppTabParamList = {
   Progress: undefined;
   Exercises: undefined;
   Routines: undefined;
+  Train: undefined;
   Profile: undefined;
 };
 
@@ -41,6 +47,11 @@ export type ExerciseScreenProps<T extends keyof ExerciseStackParamList> = Native
 
 export type RoutineScreenProps<T extends keyof RoutineStackParamList> = NativeStackScreenProps<
   RoutineStackParamList,
+  T
+>;
+
+export type TrainScreenProps<T extends keyof TrainStackParamList> = NativeStackScreenProps<
+  TrainStackParamList,
   T
 >;
 
