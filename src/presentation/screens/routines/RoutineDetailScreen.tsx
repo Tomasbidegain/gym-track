@@ -168,12 +168,6 @@ export function RoutineDetailScreen({
           <Text style={styles.actionButtonText}>Editar</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.actionButton, styles.duplicateButton]}
-          onPress={handleDuplicate}
-        >
-          <Text style={styles.actionButtonText}>Duplicar</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
           style={[styles.actionButton, styles.deleteButton]}
           onPress={handleDelete}
         >
@@ -386,6 +380,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#e3f2fd',
     borderWidth: 1,
     borderColor: '#2f95dc',
+  },
+  startButton: {
+    backgroundColor: '#4caf50',
+    paddingVertical: 10,
+    borderRadius: 8,
   },
   deleteButton: {
     backgroundColor: '#ffebee',

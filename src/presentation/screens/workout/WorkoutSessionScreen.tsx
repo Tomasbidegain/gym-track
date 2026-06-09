@@ -1,0 +1,528 @@
+import React, { useCallback, useState, useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
+} from 'react-native';
+import { RestTimer } from '../../components/RestTimer';
+import type { TrainScreenProps } from '../../navigation/types';
+import { useRoutines } from '../../hooks/useRoutines';
+import { useWorkoutSessionContext } from '../../context/WorkoutSessionContext';
+import { generateSetsFromRoutine } from '../../../domain';
+import type { RoutineDay } from '../../../domain';
+
+export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'WorkoutSession'>) {
+  const { routineId, dayId } = route.params;
+  const { routines, updateRoutine } = useRoutines();
+  const { startSession, updateSet, completeSession } = useWorkoutSessionContext();
+
+  const routine = routines.find((r) => r.id === routineId);
+  const day = routine?.days.find((d) => d.id === dayId);
+
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [exercises, setExercises] = useState(() => {
+    if (!day) return [];
+    return day.exercises.map((ex) => ({
+      ...ex,
+      sets: generateSetsFromRoutine(ex),
+    }));
+  });
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Timer states
+  const [timerActive, setTimerActive] = useState(false);
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [timerSeconds, setTimerSeconds] = useState(0);
+  const [timerTotal, setTimerTotal] = useState(0);
+  const [timerExerciseName, setTimerExerciseName] = useState('');
+  const [timerSetNumber, setTimerSetNumber] = useState(0);
+  const [timerNextSet, setTimerNextSet] = useState<number | undefined>();
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const handleStartSession = useCallback(async () => {
+    if (!routine || !day) {
+      console.log('No hay routine o day');
+      return;
+    }
+    console.log('Iniciando sesion...');
+    setIsSaving(true);
+    try {
+      const session = await startSession({
+        routineId: routine.id,
+        routineName: routine.name,
+        dayId: day.id,
+        dayName: day.name,
+        exercises: exercises.map((ex) => ({
+          exerciseId: ex.exerciseId,
+          exerciseName: ex.exerciseName,
+          muscleGroup: ex.muscleGroup,
+          equipment: ex.equipment,
+          order: ex.order,
+          sets: ex.sets,
+        })),
+      });
+      console.log('Session creada:', session);
+      if (session) {
+        setSessionId(session.id);
+      } else {
+        console.log('Session es null');
+      }
+    } catch (error) {
+      console.error('Error al iniciar sesion:', error);
+      Alert.alert('Error', 'No se pudo iniciar el entrenamiento');
+    }
+    setIsSaving(false);
+  }, [routine, day, exercises, startSession]);
+
+  // Timer countdown effect
+  useEffect(() => {
+    if (timerRunning && timerSeconds > 0) {
+      intervalRef.current = setInterval(() => {
+        setTimerSeconds((prev) => {
+          if (prev <= 1) {
+            // Timer finished
+            if (intervalRef.current) {
+              clearInterval(intervalRef.current);
+              intervalRef.current = null;
+            }
+            setTimerRunning(false);
+            // Keep showing "finished" state for 2 seconds, then hide
+            setTimeout(() => {
+              setTimerActive(false);
+            }, 2000);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [timerRunning, timerSeconds]);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, []);
+
+  const handleUpdateSet = useCallback(
+    async (exerciseIndex: number, setIndex: number, field: 'weight' | 'reps', value: number) => {
+      if (!sessionId) return;
+      const newExercises = [...exercises];
+      newExercises[exerciseIndex].sets[setIndex] = {
+        ...newExercises[exerciseIndex].sets[setIndex],
+        [field]: value,
+      };
+      setExercises(newExercises);
+
+      await updateSet(sessionId, {
+        exerciseIndex,
+        setIndex,
+        reps: newExercises[exerciseIndex].sets[setIndex].reps,
+        weight: newExercises[exerciseIndex].sets[setIndex].weight,
+        completed: newExercises[exerciseIndex].sets[setIndex].completed,
+      });
+    },
+    [sessionId, exercises, updateSet],
+  );
+
+  const handleToggleSet = useCallback(
+    async (exerciseIndex: number, setIndex: number) => {
+      if (!sessionId) return;
+      if (timerActive && timerRunning) return; // Block during active rest timer
+      
+      const newExercises = [...exercises];
+      const set = newExercises[exerciseIndex].sets[setIndex];
+      const wasCompleted = set.completed;
+      set.completed = !set.completed;
+      setExercises(newExercises);
+
+      await updateSet(sessionId, {
+        exerciseIndex,
+        setIndex,
+        reps: set.reps,
+        weight: set.weight,
+        completed: set.completed,
+      });
+
+      // Start timer when set is completed (not when uncompleted)
+      if (!wasCompleted && set.completed && routine) {
+        const exercise = newExercises[exerciseIndex];
+        const restSeconds = exercise.restSeconds || 90;
+        const nextSetIdx = exercise.sets.findIndex((s, idx) => idx > setIndex && !s.completed);
+        
+        setTimerExerciseName(exercise.exerciseName);
+        setTimerSetNumber(setIndex + 1);
+        setTimerNextSet(nextSetIdx >= 0 ? nextSetIdx + 1 : undefined);
+        setTimerSeconds(restSeconds);
+        setTimerTotal(restSeconds);
+        setTimerActive(true);
+        setTimerRunning(true);
+      }
+    },
+    [sessionId, exercises, updateSet, routine, timerActive, timerRunning],
+  );
+
+  // Timer functions
+  const handlePauseTimer = useCallback(() => {
+    setTimerRunning(false);
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  }, []);
+
+  const handleResumeTimer = useCallback(() => {
+    setTimerRunning(true);
+  }, []);
+
+  const handleCancelTimer = useCallback(() => {
+    setTimerActive(false);
+    setTimerRunning(false);
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  }, []);
+
+  const handleAddTime = useCallback((seconds: number) => {
+    setTimerSeconds((prev) => prev + seconds);
+    setTimerTotal((prev) => prev + seconds);
+  }, []);
+
+  const handleCompleteSession = useCallback(async () => {
+    if (!sessionId || !routine) return;
+    Alert.alert(
+      'Finalizar entrenamiento',
+      '¿Estas seguro de que queres finalizar?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Finalizar',
+          onPress: async () => {
+            setIsSaving(true);
+            
+            // Update routine with new weights/reps
+            const updatedDays: RoutineDay[] = routine.days.map((d) => {
+              if (d.id !== dayId) return d;
+              
+              const updatedExercises = d.exercises.map((ex) => {
+                const sessionExercise = exercises.find((se) => se.exerciseId === ex.exerciseId);
+                if (!sessionExercise) return ex;
+                
+                // Calculate average weight and reps from completed sets
+                const completedSets = sessionExercise.sets.filter((s) => s.completed);
+                if (completedSets.length === 0) return ex;
+                
+                const avgWeight = completedSets.reduce((sum, s) => sum + s.weight, 0) / completedSets.length;
+                const avgReps = completedSets.reduce((sum, s) => sum + s.reps, 0) / completedSets.length;
+                
+                return {
+                  ...ex,
+                  targetSets: completedSets.length,
+                  targetReps: Math.round(avgReps),
+                };
+              });
+              
+              return { ...d, exercises: updatedExercises };
+            });
+            
+            await updateRoutine(routineId, {
+              days: updatedDays,
+            });
+            
+            await completeSession(sessionId);
+            setIsSaving(false);
+            // Cancel timer if active
+            handleCancelTimer();
+            navigation.goBack();
+          },
+        },
+      ],
+    );
+  }, [sessionId, routine, dayId, exercises, completeSession, updateRoutine, routineId, navigation]);
+
+  if (!routine || !day) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.errorText}>Rutina no encontrada</Text>
+      </View>
+    );
+  }
+
+  return (
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <View style={styles.header}>
+        <Text style={styles.routineName}>{routine.name}</Text>
+        <Text style={styles.dayName}>{day.name}</Text>
+      </View>
+
+      <ScrollView style={styles.scrollContent}>
+        {exercises.map((exercise, exIndex) => (
+          <View key={exercise.exerciseId} style={styles.exerciseCard}>
+            <Text style={styles.exerciseName}>{exercise.exerciseName}</Text>
+            <Text style={styles.exerciseInfo}>
+              {exercise.muscleGroup} • {exercise.equipment}
+            </Text>
+
+            <View style={styles.setsContainer}>
+              {exercise.sets.map((set, setIndex) => (
+                <View key={set.setNumber} style={styles.setRow}>
+                  <Text style={styles.setNumber}>Set {set.setNumber}</Text>
+                  
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Peso (kg)</Text>
+                    <TextInput
+                      style={styles.setInput}
+                      value={String(set.weight)}
+                      onChangeText={(text) => {
+                        const val = parseFloat(text) || 0;
+                        handleUpdateSet(exIndex, setIndex, 'weight', val);
+                      }}
+                      keyboardType="numeric"
+                      placeholder="0"
+                      editable={!!sessionId}
+                    />
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Reps</Text>
+                    <TextInput
+                      style={styles.setInput}
+                      value={String(set.reps)}
+                      onChangeText={(text) => {
+                        const val = parseInt(text, 10) || 0;
+                        handleUpdateSet(exIndex, setIndex, 'reps', val);
+                      }}
+                      keyboardType="numeric"
+                      placeholder="0"
+                      editable={!!sessionId}
+                    />
+                  </View>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.checkButton, 
+                      set.completed && styles.checkButtonActive,
+                      (timerActive && timerRunning) && styles.checkButtonDisabled
+                    ]}
+                    onPress={() => handleToggleSet(exIndex, setIndex)}
+                    disabled={!sessionId || (timerActive && timerRunning)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.checkButtonText}>
+                      {set.completed ? '✓' : ''}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          </View>
+        ))}
+      </ScrollView>
+
+      <View style={styles.footer}>
+        {!sessionId ? (
+          <TouchableOpacity
+            style={[styles.startButton, isSaving && styles.buttonDisabled]}
+            onPress={handleStartSession}
+            disabled={isSaving}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.startButtonText}>
+              {isSaving ? 'Iniciando...' : 'Iniciar entrenamiento'}
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={[styles.completeButton, isSaving && styles.buttonDisabled]}
+            onPress={handleCompleteSession}
+            disabled={isSaving}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.completeButtonText}>
+              {isSaving ? 'Finalizando...' : 'Finalizar entrenamiento'}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <RestTimer
+        isActive={timerActive}
+        isRunning={timerRunning}
+        seconds={timerSeconds}
+        totalSeconds={timerTotal}
+        exerciseName={timerExerciseName}
+        setNumber={timerSetNumber}
+        nextSetNumber={timerNextSet}
+        onPause={handlePauseTimer}
+        onResume={handleResumeTimer}
+        onCancel={handleCancelTimer}
+        onAddTime={handleAddTime}
+      />
+    </KeyboardAvoidingView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  header: {
+    padding: 16,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  routineName: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1a1a1a',
+  },
+  dayName: {
+    fontSize: 16,
+    color: '#666',
+    marginTop: 4,
+  },
+  scrollContent: {
+    flex: 1,
+    padding: 16,
+  },
+  exerciseCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e8e8e8',
+  },
+  exerciseName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginBottom: 4,
+  },
+  exerciseInfo: {
+    fontSize: 14,
+    color: '#888',
+    marginBottom: 16,
+  },
+  setsContainer: {
+    gap: 12,
+  },
+  setRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#fafafa',
+    borderRadius: 8,
+    padding: 12,
+  },
+  setNumber: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+    width: 50,
+  },
+  inputGroup: {
+    flex: 1,
+  },
+  inputLabel: {
+    fontSize: 11,
+    color: '#888',
+    marginBottom: 4,
+  },
+  setInput: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+    color: '#1a1a1a',
+  },
+  checkButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: '#ddd',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+  },
+  checkButtonActive: {
+    backgroundColor: '#4caf50',
+    borderColor: '#4caf50',
+  },
+  checkButtonDisabled: {
+    opacity: 0.4,
+    backgroundColor: '#e0e0e0',
+    borderColor: '#bdbdbd',
+  },
+  checkButtonText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  footer: {
+    padding: 16,
+    paddingBottom: 24,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  startButton: {
+    paddingVertical: 14,
+    backgroundColor: '#2f95dc',
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  completeButton: {
+    paddingVertical: 14,
+    backgroundColor: '#4caf50',
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  startButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  completeButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#d32f2f',
+    textAlign: 'center',
+    marginTop: 40,
+  },
+});
