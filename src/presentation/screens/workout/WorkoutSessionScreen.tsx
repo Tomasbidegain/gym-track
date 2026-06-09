@@ -10,6 +10,7 @@ import {
   Platform,
   Alert,
   BackHandler,
+  ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { RestTimer } from '../../components/RestTimer';
@@ -33,7 +34,7 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
   const { routineId, dayId } = route.params;
   const { routines, updateRoutine } = useRoutines();
   const { startSession, updateSet, completeSession, markSessionComplete, sessions } = useWorkoutSessionContext();
-  const { completedDayIds, refresh: refreshCompletedDays } = useCompletedDaysInWeek(routineId);
+  const { completedDayIds, isLoading: isLoadingCompletedDays, refresh: refreshCompletedDays } = useCompletedDaysInWeek(routineId);
 
   // Refresh completed days when screen receives focus (e.g., after switching days)
   useFocusEffect(
@@ -444,6 +445,16 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
     );
   }, [sessionId, routine, dayId, exercises, completeSession, updateRoutine, routineId, navigation]);
 
+  // Show loading while checking if day is completed
+  if (isLoadingCompletedDays) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#2f95dc" />
+        <Text style={styles.loadingText}>Cargando...</Text>
+      </View>
+    );
+  }
+
   if (!routine || !day) {
     return (
       <View style={styles.container}>
@@ -671,6 +682,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
   },
   header: {
     flexDirection: 'row',
