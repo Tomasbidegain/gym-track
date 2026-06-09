@@ -34,31 +34,57 @@ export function ExerciseTimer({ onComplete, targetDuration }: ExerciseTimerProps
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isRunningRef = useRef(false);
-  const wasRunningBeforeBackground = useRef(false);
+
+  const startedAtRef = useRef<number | null>(null);
+  const pausedDurationRef = useRef<number>(0);
+  const pauseStartedAtRef = useRef<number | null>(null);
 
   // Keep ref in sync with state so AppState listener always sees latest value
   useEffect(() => {
     isRunningRef.current = isRunning;
   }, [isRunning]);
 
+  // Calculate elapsed seconds from wall-clock time, accounting for pauses
+  const getElapsedSeconds = useCallback(() => {
+    if (startedAtRef.current === null) return 0;
+    const now = Date.now();
+    let paused = pausedDurationRef.current;
+    if (pauseStartedAtRef.current !== null) {
+      paused += now - pauseStartedAtRef.current;
+    }
+    return Math.max(0, Math.floor((now - startedAtRef.current - paused) / 1000));
+  }, []);
+
   // Single active timer enforcement: stop when another timer starts
   useEffect(() => {
     const handleActiveChange = (id: string | null) => {
       if (id !== timerId && isRunningRef.current) {
-        handleStopInternal();
+        setIsRunning(false);
+        if (activeTimerId === timerId) {
+          setGlobalActiveTimer(null);
+        }
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+        const finalDuration = getElapsedSeconds();
+        if (finalDuration > 0) {
+          setIsCompleted(true);
+        }
+        onComplete(finalDuration);
       }
     };
     listeners.add(handleActiveChange);
     return () => {
       listeners.delete(handleActiveChange);
     };
-  }, [timerId]);
+  }, [timerId, onComplete, getElapsedSeconds]);
 
-  // Interval management
+  // Interval management: only for UI re-renders, not time accumulation
   useEffect(() => {
     if (isRunning) {
       intervalRef.current = setInterval(() => {
-        setElapsedSeconds((prev) => prev + 1);
+        setElapsedSeconds(getElapsedSeconds());
       }, 1000);
     } else {
       if (intervalRef.current) {
@@ -73,29 +99,52 @@ export function ExerciseTimer({ onComplete, targetDuration }: ExerciseTimerProps
         intervalRef.current = null;
       }
     };
-  }, [isRunning]);
+  }, [isRunning, getElapsedSeconds]);
 
   // AppState handling: pause on background, resume on foreground
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
       if (nextAppState === 'active') {
-        if (wasRunningBeforeBackground.current) {
+        if (pauseStartedAtRef.current !== null) {
+          const now = Date.now();
+          pausedDurationRef.current += now - pauseStartedAtRef.current;
+          pauseStartedAtRef.current = null;
           setIsRunning(true);
           // Re-assert this timer as the global active one after returning
           setGlobalActiveTimer(timerId);
+          setElapsedSeconds(getElapsedSeconds());
         }
       } else {
-        wasRunningBeforeBackground.current = isRunningRef.current;
-        if (isRunningRef.current) {
+        if (isRunningRef.current && pauseStartedAtRef.current === null) {
+          pauseStartedAtRef.current = Date.now();
           setIsRunning(false);
         }
       }
     });
 
     return () => subscription.remove();
-  }, [timerId]);
+  }, [timerId, getElapsedSeconds]);
 
-  const handleStopInternal = useCallback(() => {
+  const handleStart = useCallback(() => {
+    // Reset if starting a new run after completion
+    if (isCompleted) {
+      setIsCompleted(false);
+      startedAtRef.current = Date.now();
+      pausedDurationRef.current = 0;
+      pauseStartedAtRef.current = null;
+    } else if (startedAtRef.current === null) {
+      // First start
+      startedAtRef.current = Date.now();
+      pausedDurationRef.current = 0;
+      pauseStartedAtRef.current = null;
+    }
+    setIsRunning(true);
+    setGlobalActiveTimer(timerId);
+    setElapsedSeconds(getElapsedSeconds());
+  }, [timerId, isCompleted, getElapsedSeconds]);
+
+  const handleStop = useCallback(() => {
+    const finalDuration = getElapsedSeconds();
     setIsRunning(false);
     if (activeTimerId === timerId) {
       setGlobalActiveTimer(null);
@@ -104,27 +153,11 @@ export function ExerciseTimer({ onComplete, targetDuration }: ExerciseTimerProps
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-  }, [timerId]);
-
-  const handleStart = useCallback(() => {
-    // Reset if starting a new run after completion
-    if (isCompleted) {
-      setIsCompleted(false);
-      setElapsedSeconds(0);
-    }
-    setIsRunning(true);
-    setGlobalActiveTimer(timerId);
-  }, [timerId, isCompleted]);
-
-  const handleStop = useCallback(() => {
-    handleStopInternal();
-
-    const finalDuration = elapsedSeconds;
     if (finalDuration > 0) {
       setIsCompleted(true);
     }
     onComplete(finalDuration);
-  }, [handleStopInternal, elapsedSeconds, onComplete]);
+  }, [timerId, onComplete, getElapsedSeconds]);
 
   const formatTime = (totalSeconds: number) => {
     const mins = Math.floor(totalSeconds / 60);
