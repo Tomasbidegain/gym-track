@@ -12,6 +12,7 @@ interface WorkoutSessionContextValue {
   startSession: (input: CreateWorkoutSessionInput) => Promise<WorkoutSession | null>;
   updateSet: (sessionId: string, input: UpdateWorkoutSetInput) => Promise<WorkoutSession | null>;
   completeSession: (sessionId: string) => Promise<WorkoutSession | null>;
+  markSessionComplete: (sessionId: string) => Promise<WorkoutSession | null>;
   setCurrentSession: (session: WorkoutSession | null) => void;
   clearCurrentSession: () => void;
   refresh: () => Promise<void>;
@@ -122,6 +123,31 @@ export function WorkoutSessionContextProvider({ children }: { children: React.Re
     [uid],
   );
 
+  const markSessionComplete = useCallback(
+    async (sessionId: string): Promise<WorkoutSession | null> => {
+      if (!uid) return null;
+      setIsLoading(true);
+      setError(null);
+      try {
+        const updated = await workoutSessionRepository.update(uid, sessionId, {
+          isCompleted: true,
+          completedAt: new Date(),
+        });
+        setSessions((prev) => prev.map((s) => (s.id === sessionId ? updated : s)));
+        if (currentSession?.id === sessionId) {
+          setCurrentSessionState(updated);
+        }
+        return updated;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Error al marcar sesion como completada');
+        return null;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [uid, currentSession],
+  );
+
   const setCurrentSession = useCallback((session: WorkoutSession | null) => {
     setCurrentSessionState(session);
   }, []);
@@ -143,6 +169,7 @@ export function WorkoutSessionContextProvider({ children }: { children: React.Re
       startSession,
       updateSet,
       completeSession,
+      markSessionComplete,
       setCurrentSession,
       clearCurrentSession,
       refresh: fetchSessions,
@@ -156,6 +183,7 @@ export function WorkoutSessionContextProvider({ children }: { children: React.Re
       startSession,
       updateSet,
       completeSession,
+      markSessionComplete,
       setCurrentSession,
       clearCurrentSession,
       fetchSessions,
