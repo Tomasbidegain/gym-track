@@ -445,16 +445,6 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
     );
   }, [sessionId, routine, dayId, exercises, completeSession, updateRoutine, routineId, navigation]);
 
-  // Show loading while checking if day is completed
-  if (isLoadingCompletedDays) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2f95dc" />
-        <Text style={styles.loadingText}>Cargando...</Text>
-      </View>
-    );
-  }
-
   if (!routine || !day) {
     return (
       <View style={styles.container}>
@@ -477,21 +467,6 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
           <SessionTimer startedAt={activeSession.startedAt} />
         )}
       </View>
-
-      {isDayCompleted && completedSession && (
-        <View style={styles.completedBanner}>
-          <Text style={styles.completedBannerText}>
-            Día completado
-          </Text>
-          <Text style={styles.completedBannerSubtext}>
-            Duración: {(() => {
-              const mins = Math.floor((completedSession.totalDurationSeconds || 0) / 60);
-              const secs = (completedSession.totalDurationSeconds || 0) % 60;
-              return `${mins} min ${secs} seg`;
-            })()}
-          </Text>
-        </View>
-      )}
 
       <ScrollView
         horizontal
@@ -531,134 +506,157 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
         })}
       </ScrollView>
 
-      <ScrollView style={styles.scrollContent}>
-        {exercises.map((exercise, exIndex) => (
-          <View key={exercise.exerciseId} style={styles.exerciseCard}>
-            <Text style={styles.exerciseName}>{exercise.exerciseName}</Text>
-            <Text style={styles.exerciseInfo}>
-              {exercise.muscleGroup} • {exercise.equipment}
-            </Text>
-
-            <View style={styles.setsContainer}>
-              {exercise.sets.map((set, setIndex) => (
-                <View key={set.setNumber} style={styles.setRow}>
-                  <Text style={styles.setNumber}>Set {set.setNumber}</Text>
-
-                  {exercise.isTimeBased ? (
-                    <>
-                      <View style={styles.inputGroup}>
-                        <Text style={styles.inputLabel}>Peso (kg)</Text>
-                        <TextInput
-                          style={styles.setInput}
-                          value={String(set.weight)}
-                          onChangeText={(text) => {
-                            const val = parseFloat(text) || 0;
-                            handleUpdateSet(exIndex, setIndex, 'weight', val);
-                          }}
-                          keyboardType="numeric"
-                          placeholder="0"
-                          editable={!!sessionId && !isDayCompleted}
-                        />
-                      </View>
-
-                      {sessionId && !isDayCompleted ? (
-                        <ExerciseTimer
-                          onComplete={(duration) => handleTimerComplete(exIndex, setIndex, duration)}
-                          targetDuration={exercise.targetDurationSeconds}
-                        />
-                      ) : (
-                        <View style={styles.timerPlaceholder}>
-                          <Text style={styles.timerPlaceholderText}>
-                            {set.durationSeconds
-                              ? `${Math.floor(set.durationSeconds / 60).toString().padStart(2, '0')}:${(set.durationSeconds % 60).toString().padStart(2, '0')}`
-                              : '--:--'}
-                          </Text>
-                        </View>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <View style={styles.inputGroup}>
-                        <Text style={styles.inputLabel}>Peso (kg)</Text>
-                        <TextInput
-                          style={styles.setInput}
-                          value={String(set.weight)}
-                          onChangeText={(text) => {
-                            const val = parseFloat(text) || 0;
-                            handleUpdateSet(exIndex, setIndex, 'weight', val);
-                          }}
-                          keyboardType="numeric"
-                          placeholder="0"
-                          editable={!!sessionId && !isDayCompleted}
-                        />
-                      </View>
-
-                      <View style={styles.inputGroup}>
-                        <Text style={styles.inputLabel}>Reps</Text>
-                        <TextInput
-                          style={styles.setInput}
-                          value={String(set.reps)}
-                          onChangeText={(text) => {
-                            const val = parseInt(text, 10) || 0;
-                            handleUpdateSet(exIndex, setIndex, 'reps', val);
-                          }}
-                          keyboardType="numeric"
-                          placeholder="0"
-                          editable={!!sessionId && !isDayCompleted}
-                        />
-                      </View>
-
-                      {sessionId && !isDayCompleted && (
-                        <TouchableOpacity
-                          style={[
-                            styles.checkButton,
-                            set.completed && styles.checkButtonActive,
-                            (timerActive && timerRunning) && styles.checkButtonDisabled
-                          ]}
-                          onPress={() => handleToggleSet(exIndex, setIndex)}
-                          disabled={timerActive && timerRunning}
-                          activeOpacity={0.8}
-                        >
-                          <Text style={styles.checkButtonText}>
-                            {set.completed ? '✓' : ''}
-                          </Text>
-                        </TouchableOpacity>
-                      )}
-                    </>
-                  )}
-                </View>
-              ))}
-            </View>
-          </View>
-        ))}
-      </ScrollView>
-
-      {!isDayCompleted && (
-        <View style={styles.footer}>
-          {!sessionId ? (
-            <TouchableOpacity
-              style={[styles.startButton, isSaving && styles.buttonDisabled]}
-              onPress={handleStartSession}
-              disabled={isSaving}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.startButtonText}>
-                {isSaving ? 'Iniciando...' : 'Iniciar entrenamiento'}
-              </Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={[styles.completeButton, isSaving && styles.buttonDisabled]}
-              onPress={handleCompleteSession}
-              disabled={isSaving}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.completeButtonText}>
-                {isSaving ? 'Finalizando...' : 'Finalizar entrenamiento'}
-              </Text>
-            </TouchableOpacity>
-          )}
+      {isLoadingCompletedDays ? (
+        <View style={styles.contentLoadingContainer}>
+          <ActivityIndicator size="small" color="#2f95dc" />
         </View>
+      ) : (
+        <>
+          {isDayCompleted && completedSession && (
+            <View style={styles.completedBanner}>
+              <Text style={styles.completedBannerText}>
+                Día completado
+              </Text>
+              <Text style={styles.completedBannerSubtext}>
+                Duración: {(() => {
+                  const mins = Math.floor((completedSession.totalDurationSeconds || 0) / 60);
+                  const secs = (completedSession.totalDurationSeconds || 0) % 60;
+                  return `${mins} min ${secs} seg`;
+                })()}
+              </Text>
+            </View>
+          )}
+
+          <ScrollView style={styles.scrollContent}>
+            {exercises.map((exercise, exIndex) => (
+              <View key={exercise.exerciseId} style={styles.exerciseCard}>
+                <Text style={styles.exerciseName}>{exercise.exerciseName}</Text>
+                <Text style={styles.exerciseInfo}>
+                  {exercise.muscleGroup} • {exercise.equipment}
+                </Text>
+
+                <View style={styles.setsContainer}>
+                  {exercise.sets.map((set, setIndex) => (
+                    <View key={set.setNumber} style={styles.setRow}>
+                      <Text style={styles.setNumber}>Set {set.setNumber}</Text>
+
+                      {exercise.isTimeBased ? (
+                        <>
+                          <View style={styles.inputGroup}>
+                            <Text style={styles.inputLabel}>Peso (kg)</Text>
+                            <TextInput
+                              style={styles.setInput}
+                              value={String(set.weight)}
+                              onChangeText={(text) => {
+                                const val = parseFloat(text) || 0;
+                                handleUpdateSet(exIndex, setIndex, 'weight', val);
+                              }}
+                              keyboardType="numeric"
+                              placeholder="0"
+                              editable={!!sessionId && !isDayCompleted}
+                            />
+                          </View>
+
+                          {sessionId && !isDayCompleted ? (
+                            <ExerciseTimer
+                              onComplete={(duration) => handleTimerComplete(exIndex, setIndex, duration)}
+                              targetDuration={exercise.targetDurationSeconds}
+                            />
+                          ) : (
+                            <View style={styles.timerPlaceholder}>
+                              <Text style={styles.timerPlaceholderText}>
+                                {set.durationSeconds
+                                  ? `${Math.floor(set.durationSeconds / 60).toString().padStart(2, '0')}:${(set.durationSeconds % 60).toString().padStart(2, '0')}`
+                                  : '--:--'}
+                              </Text>
+                            </View>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <View style={styles.inputGroup}>
+                            <Text style={styles.inputLabel}>Peso (kg)</Text>
+                            <TextInput
+                              style={styles.setInput}
+                              value={String(set.weight)}
+                              onChangeText={(text) => {
+                                const val = parseFloat(text) || 0;
+                                handleUpdateSet(exIndex, setIndex, 'weight', val);
+                              }}
+                              keyboardType="numeric"
+                              placeholder="0"
+                              editable={!!sessionId && !isDayCompleted}
+                            />
+                          </View>
+
+                          <View style={styles.inputGroup}>
+                            <Text style={styles.inputLabel}>Reps</Text>
+                            <TextInput
+                              style={styles.setInput}
+                              value={String(set.reps)}
+                              onChangeText={(text) => {
+                                const val = parseInt(text, 10) || 0;
+                                handleUpdateSet(exIndex, setIndex, 'reps', val);
+                              }}
+                              keyboardType="numeric"
+                              placeholder="0"
+                              editable={!!sessionId && !isDayCompleted}
+                            />
+                          </View>
+
+                          {sessionId && !isDayCompleted && (
+                            <TouchableOpacity
+                              style={[
+                                styles.checkButton,
+                                set.completed && styles.checkButtonActive,
+                                (timerActive && timerRunning) && styles.checkButtonDisabled
+                              ]}
+                              onPress={() => handleToggleSet(exIndex, setIndex)}
+                              disabled={timerActive && timerRunning}
+                              activeOpacity={0.8}
+                            >
+                              <Text style={styles.checkButtonText}>
+                                {set.completed ? '✓' : ''}
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                        </>
+                      )}
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ))}
+          </ScrollView>
+
+          {!isDayCompleted && (
+            <View style={styles.footer}>
+              {!sessionId ? (
+                <TouchableOpacity
+                  style={[styles.startButton, isSaving && styles.buttonDisabled]}
+                  onPress={handleStartSession}
+                  disabled={isSaving}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.startButtonText}>
+                    {isSaving ? 'Iniciando...' : 'Iniciar entrenamiento'}
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.completeButton, isSaving && styles.buttonDisabled]}
+                  onPress={handleCompleteSession}
+                  disabled={isSaving}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.completeButtonText}>
+                    {isSaving ? 'Finalizando...' : 'Finalizar entrenamiento'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+        </>
       )}
 
       <RestTimer
@@ -683,16 +681,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
-  loadingContainer: {
+  contentLoadingContainer: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#666',
+    paddingVertical: 60,
   },
   header: {
     flexDirection: 'row',
