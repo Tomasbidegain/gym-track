@@ -38,6 +38,24 @@ function defaultRoutineExercise(ex: RoutineExercise): RoutineExercise {
   };
 }
 
+function cleanUndefinedValues(obj: any): any {
+  if (obj === null || typeof obj !== 'object') {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(cleanUndefinedValues);
+  }
+
+  const cleaned: any = {};
+  for (const key in obj) {
+    if (obj[key] !== undefined) {
+      cleaned[key] = cleanUndefinedValues(obj[key]);
+    }
+  }
+  return cleaned;
+}
+
 function toRoutine(id: string, data: FirestoreRoutineData): Routine {
   let days: RoutineDay[];
   if (data.days && data.days.length > 0) {
@@ -69,24 +87,6 @@ function toRoutine(id: string, data: FirestoreRoutineData): Routine {
 
 function routinesPath(uid: string): string {
   return `users/${uid}/routines`;
-}
-
-function cleanUndefinedValues(obj: any): any {
-  if (obj === null || typeof obj !== 'object') {
-    return obj;
-  }
-
-  if (Array.isArray(obj)) {
-    return obj.map(cleanUndefinedValues);
-  }
-
-  const cleaned: any = {};
-  for (const key in obj) {
-    if (obj[key] !== undefined) {
-      cleaned[key] = cleanUndefinedValues(obj[key]);
-    }
-  }
-  return cleaned;
 }
 
 export class FirestoreRoutineRepository implements IRoutineRepository {
