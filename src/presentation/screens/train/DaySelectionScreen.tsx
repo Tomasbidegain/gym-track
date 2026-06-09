@@ -5,6 +5,7 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { TrainScreenProps } from '../../navigation/types';
@@ -17,7 +18,7 @@ export function DaySelectionScreen({
 }: TrainScreenProps<'DaySelection'>) {
   const { routineId } = route.params;
   const { routines } = useRoutines();
-  const { completedDayIds, refresh } = useCompletedDaysInWeek(routineId);
+  const { completedDayIds, isLoading, refresh } = useCompletedDaysInWeek(routineId);
 
   // Refresh completed days when screen receives focus (e.g., after completing a workout)
   useFocusEffect(
@@ -42,6 +43,14 @@ export function DaySelectionScreen({
   const handleDayPress = (dayId: string) => {
     navigation.navigate('WorkoutSession', { routineId, dayId });
   };
+
+  if (isLoading) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color="#2f95dc" />
+      </View>
+    );
+  }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
