@@ -9,18 +9,21 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  BackHandler,
 } from 'react-native';
 import { RestTimer } from '../../components/RestTimer';
 import type { TrainScreenProps } from '../../navigation/types';
 import { useRoutines } from '../../hooks/useRoutines';
 import { useWorkoutSessionContext } from '../../context/WorkoutSessionContext';
+import { useCompletedDaysInWeek } from '../../hooks/useCompletedDaysInWeek';
 import { generateSetsFromRoutine } from '../../../domain';
 import type { RoutineDay } from '../../../domain';
 
 export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'WorkoutSession'>) {
   const { routineId, dayId } = route.params;
   const { routines, updateRoutine } = useRoutines();
-  const { startSession, updateSet, completeSession } = useWorkoutSessionContext();
+  const { startSession, updateSet, completeSession, markSessionComplete, sessions } = useWorkoutSessionContext();
+  const { completedDayIds } = useCompletedDaysInWeek(routineId);
 
   const routine = routines.find((r) => r.id === routineId);
   const day = routine?.days.find((d) => d.id === dayId);
@@ -119,6 +122,72 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
       }
     };
   }, []);
+
+  // Intercept navigation exit when session is incomplete
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      if (!sessionId) return;
+      const session = sessions.find((s) => s.id === sessionId);
+      if (!session || session.isCompleted) return;
+
+      e.preventDefault();
+
+      Alert.alert(
+        `${day?.name} is incomplete`,
+        'Mark as completed or resume another day?',
+        [
+          {
+            text: 'Resume later',
+            style: 'cancel',
+            onPress: () => navigation.dispatch(e.data.action),
+          },
+          {
+            text: 'Mark complete',
+            onPress: async () => {
+              await markSessionComplete(sessionId);
+              navigation.dispatch(e.data.action);
+            },
+          },
+        ],
+        { cancelable: true },
+      );
+    });
+
+    return unsubscribe;
+  }, [navigation, sessionId, sessions, markSessionComplete, day]);
+
+  // Android hardware back fallback
+  useEffect(() => {
+    const onBackPress = () => {
+      if (!sessionId) return false;
+      const session = sessions.find((s) => s.id === sessionId);
+      if (!session || session.isCompleted) return false;
+
+      Alert.alert(
+        `${day?.name} is incomplete`,
+        'Mark as completed or resume another day?',
+        [
+          {
+            text: 'Resume later',
+            style: 'cancel',
+            onPress: () => navigation.goBack(),
+          },
+          {
+            text: 'Mark complete',
+            onPress: async () => {
+              await markSessionComplete(sessionId);
+              navigation.goBack();
+            },
+          },
+        ],
+        { cancelable: true },
+      );
+      return true;
+    };
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => backHandler.remove();
+  }, [sessionId, sessions, markSessionComplete, day, navigation]);
 
   const handleUpdateSet = useCallback(
     async (exerciseIndex: number, setIndex: number, field: 'weight' | 'reps', value: number) => {
@@ -275,6 +344,48 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
         <Text style={styles.dayName}>{day.name}</Text>
       </View>
 
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.dayTabsContainer}
+        contentContainerStyle={styles.dayTabsContent}
+      >
+        {routine.days.map((d) => {
+          const isDayCompleted = completedDayIds.has(d.id);
+          const isActive = d.id === dayId;
+          return (
+            <TouchableOpacity
+              key={d.id}
+              style={[
+                styles.dayTab,
+                isActive && styles.dayTabActive,
+                isDayCompleted && styles.dayTabCompleted,
+              ]}
+              onPress={() => {
+                if (d.id === dayId) return;
+                if (isDayCompleted) {
+                  Alert.alert('Dia completado', 'Este dia ya fue completado esta semana.');
+                  return;
+                }
+                navigation.replace('WorkoutSession', { routineId, dayId: d.id });
+              }}
+              activeOpacity={0.8}
+            >
+              <Text
+                style={[
+                  styles.dayTabText,
+                  isActive && styles.dayTabTextActive,
+                  isDayCompleted && styles.dayTabTextCompleted,
+                ]}
+              >
+                {d.name}
+              </Text>
+              {isDayCompleted && <Text style={styles.dayTabCheckmark}>✓</Text>}
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+
       <ScrollView style={styles.scrollContent}>
         {exercises.map((exercise, exIndex) => (
           <View key={exercise.exerciseId} style={styles.exerciseCard}>
@@ -402,6 +513,52 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
     marginTop: 4,
+  },
+  dayTabsContainer: {
+    maxHeight: 60,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  dayTabsContent: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  dayTab: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#f5f5f5',
+    borderWidth: 1,
+    borderColor: '#e8e8e8',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  dayTabActive: {
+    backgroundColor: '#e3f2fd',
+    borderColor: '#2f95dc',
+  },
+  dayTabCompleted: {
+    backgroundColor: '#f0f9f0',
+    borderColor: '#4caf50',
+  },
+  dayTabText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#666',
+  },
+  dayTabTextActive: {
+    color: '#2f95dc',
+  },
+  dayTabTextCompleted: {
+    color: '#4caf50',
+  },
+  dayTabCheckmark: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#4caf50',
   },
   scrollContent: {
     flex: 1,
