@@ -5,9 +5,11 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
+  Alert,
 } from 'react-native';
 import type { TrainScreenProps } from '../../navigation/types';
 import { useRoutines } from '../../hooks/useRoutines';
+import { useCompletedDaysInWeek } from '../../hooks/useCompletedDaysInWeek';
 
 export function DaySelectionScreen({
   route,
@@ -15,6 +17,7 @@ export function DaySelectionScreen({
 }: TrainScreenProps<'DaySelection'>) {
   const { routineId } = route.params;
   const { routines } = useRoutines();
+  const { completedDayIds } = useCompletedDaysInWeek(routineId);
 
   const routine = routines.find((r) => r.id === routineId);
 
@@ -29,24 +32,44 @@ export function DaySelectionScreen({
     );
   }
 
+  const handleDayPress = (dayId: string, dayName: string) => {
+    if (completedDayIds.has(dayId)) {
+      Alert.alert(
+        'Dia completado',
+        `El dia "${dayName}" ya fue completado esta semana. Elegi otro dia.`,
+      );
+      return;
+    }
+    navigation.navigate('WorkoutSession', { routineId, dayId });
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>{routine.name}</Text>
       <Text style={styles.subtitle}>Selecciona un dia</Text>
 
-      {routine.days.map((day) => (
-        <TouchableOpacity
-          key={day.id}
-          style={styles.dayCard}
-          onPress={() => navigation.navigate('WorkoutSession', { routineId, dayId: day.id })}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.dayName}>{day.name}</Text>
-          <Text style={styles.dayMeta}>
-            {day.exercises.length} {day.exercises.length === 1 ? 'ejercicio' : 'ejercicios'}
-          </Text>
-        </TouchableOpacity>
-      ))}
+      {routine.days.map((day) => {
+        const isCompleted = completedDayIds.has(day.id);
+        return (
+          <TouchableOpacity
+            key={day.id}
+            style={[styles.dayCard, isCompleted && styles.dayCardCompleted]}
+            onPress={() => handleDayPress(day.id, day.name)}
+            activeOpacity={isCompleted ? 1 : 0.8}
+            disabled={isCompleted}
+          >
+            <View style={styles.dayCardRow}>
+              <Text style={[styles.dayName, isCompleted && styles.dayNameCompleted]}>
+                {day.name}
+              </Text>
+              {isCompleted && <Text style={styles.checkmark}>✓</Text>}
+            </View>
+            <Text style={[styles.dayMeta, isCompleted && styles.dayMetaCompleted]}>
+              {day.exercises.length} {day.exercises.length === 1 ? 'ejercicio' : 'ejercicios'}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
     </ScrollView>
   );
 }
@@ -98,14 +121,34 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e8e8e8',
   },
+  dayCardCompleted: {
+    backgroundColor: '#f0f9f0',
+    borderColor: '#4caf50',
+  },
+  dayCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
   dayName: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1a1a1a',
-    marginBottom: 4,
+  },
+  dayNameCompleted: {
+    color: '#4caf50',
   },
   dayMeta: {
     fontSize: 13,
     color: '#888',
+  },
+  dayMetaCompleted: {
+    color: '#81c784',
+  },
+  checkmark: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#4caf50',
   },
 });
