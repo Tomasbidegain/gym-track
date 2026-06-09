@@ -131,13 +131,15 @@ export class FirestoreRoutineRepository implements IRoutineRepository {
     try {
       const colRef = collection(this.firestore, routinesPath(uid));
       const now = serverTimestamp();
-      const docData = {
+      const docData: any = {
         name: routine.name,
-        description: routine.description,
         days: cleanUndefinedValues(routine.days),
         createdAt: now,
         updatedAt: now,
       };
+      if (routine.description !== undefined) {
+        docData.description = routine.description;
+      }
       const docRef = await addDoc(colRef, docData);
       return {
         id: docRef.id,
