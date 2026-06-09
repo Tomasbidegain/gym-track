@@ -9,6 +9,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Switch,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { RoutineScreenProps } from '../../navigation/types';
@@ -44,6 +45,8 @@ function createDefaultRoutineExercise(exercise: Exercise, order: number): Routin
     targetReps: 8,
     restSeconds: 90,
     notes: undefined,
+    isTimeBased: false,
+    targetDurationSeconds: 0,
   };
 }
 
@@ -236,6 +239,17 @@ export function RoutineCreateScreen({ navigation }: RoutineScreenProps<'RoutineC
           setFormError('El descanso no puede ser negativo');
           return false;
         }
+        if (ex.isTimeBased) {
+          if (!ex.targetDurationSeconds || ex.targetDurationSeconds <= 0) {
+            setFormError('La duracion debe ser mayor a 0 para ejercicios basados en tiempo');
+            return false;
+          }
+        } else {
+          if (ex.targetReps <= 0) {
+            setFormError('Las reps deben ser al menos 1');
+            return false;
+          }
+        }
       }
     }
     return true;
@@ -348,6 +362,22 @@ export function RoutineCreateScreen({ navigation }: RoutineScreenProps<'RoutineC
                           </TouchableOpacity>
                         </View>
 
+                        <View style={styles.toggleRow}>
+                          <Text style={styles.toggleLabel}>Ejercicio basado en tiempo</Text>
+                          <Switch
+                            value={item.isTimeBased ?? false}
+                            onValueChange={(val) => {
+                              updateExercise(dayIndex, item.order, {
+                                isTimeBased: val,
+                                targetDurationSeconds: val ? (item.targetDurationSeconds || 45) : undefined,
+                              });
+                              clearFormError();
+                            }}
+                            trackColor={{ false: '#ddd', true: '#2f95dc' }}
+                            thumbColor="#fff"
+                          />
+                        </View>
+
                         <View style={styles.fieldsRow}>
                           <View style={styles.field}>
                             <Text style={styles.fieldLabel}>Series</Text>
@@ -363,20 +393,37 @@ export function RoutineCreateScreen({ navigation }: RoutineScreenProps<'RoutineC
                               maxLength={2}
                             />
                           </View>
-                          <View style={styles.field}>
-                            <Text style={styles.fieldLabel}>Reps</Text>
-                            <TextInput
-                              style={styles.fieldInput}
-                              value={String(item.targetReps)}
-                              onChangeText={(text) => {
-                                const val = parseInt(text, 10);
-                                updateExercise(dayIndex, item.order, { targetReps: isNaN(val) ? 0 : val });
-                                clearFormError();
-                              }}
-                              keyboardType="numeric"
-                              maxLength={3}
-                            />
-                          </View>
+                          {item.isTimeBased ? (
+                            <View style={styles.field}>
+                              <Text style={styles.fieldLabel}>Duracion (s)</Text>
+                              <TextInput
+                                style={styles.fieldInput}
+                                value={String(item.targetDurationSeconds ?? 0)}
+                                onChangeText={(text) => {
+                                  const val = parseInt(text, 10);
+                                  updateExercise(dayIndex, item.order, { targetDurationSeconds: isNaN(val) ? 0 : val });
+                                  clearFormError();
+                                }}
+                                keyboardType="numeric"
+                                maxLength={4}
+                              />
+                            </View>
+                          ) : (
+                            <View style={styles.field}>
+                              <Text style={styles.fieldLabel}>Reps</Text>
+                              <TextInput
+                                style={styles.fieldInput}
+                                value={String(item.targetReps)}
+                                onChangeText={(text) => {
+                                  const val = parseInt(text, 10);
+                                  updateExercise(dayIndex, item.order, { targetReps: isNaN(val) ? 0 : val });
+                                  clearFormError();
+                                }}
+                                keyboardType="numeric"
+                                maxLength={3}
+                              />
+                            </View>
+                          )}
                           <View style={styles.field}>
                             <Text style={styles.fieldLabel}>Descanso (s)</Text>
                             <TextInput
@@ -557,6 +604,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#d32f2f',
     fontWeight: '500',
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    paddingVertical: 4,
+  },
+  toggleLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#555',
   },
   fieldsRow: {
     flexDirection: 'row',
