@@ -77,3 +77,12 @@ export { UpdateRoutine } from './usecases/routine/UpdateRoutine';
 export type { UpdateRoutineInput } from './usecases/routine/UpdateRoutine';
 export { DeleteRoutine } from './usecases/routine/DeleteRoutine';
 export { DuplicateRoutine } from './usecases/routine/DuplicateRoutine';
+
+export type { WorkoutSession, WorkoutExercise, WorkoutSet, CreateWorkoutSessionInput, UpdateWorkoutSetInput } from './entities/WorkoutSession';
+export { createWorkoutSession, calculateTotalVolume, updateWorkoutSet, completeWorkoutSession, generateSetsFromRoutine, getWeekBounds } from './entities/WorkoutSession';
+export type { IWorkoutSessionRepository } from './repositories/IWorkoutSessionRepository';
+export { CreateWorkoutSession } from './usecases/workout/CreateWorkoutSession';
+export { UpdateWorkoutSessionSet } from './usecases/workout/UpdateWorkoutSessionSet';
+export { CompleteWorkoutSession } from './usecases/workout/CompleteWorkoutSession';
+export { GetWorkoutSessions } from './usecases/workout/GetWorkoutSessions';
+export { GetCompletedDaysInWeek } from './usecases/workout/GetCompletedDaysInWeek';
