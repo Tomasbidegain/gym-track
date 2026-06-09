@@ -11,6 +11,7 @@ import {
   Alert,
   BackHandler,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { RestTimer } from '../../components/RestTimer';
 import { SessionTimer } from '../../components/SessionTimer';
 import { ExerciseTimer } from '../../components/ExerciseTimer';
@@ -25,13 +26,21 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
   const { routineId, dayId } = route.params;
   const { routines, updateRoutine } = useRoutines();
   const { startSession, updateSet, completeSession, markSessionComplete, sessions } = useWorkoutSessionContext();
-  const { completedDayIds } = useCompletedDaysInWeek(routineId);
+  const { completedDayIds, refresh: refreshCompletedDays } = useCompletedDaysInWeek(routineId);
+
+  // Refresh completed days when screen receives focus (e.g., after switching days)
+  useFocusEffect(
+    React.useCallback(() => {
+      refreshCompletedDays();
+    }, [refreshCompletedDays])
+  );
 
   const routine = routines.find((r) => r.id === routineId);
   const day = routine?.days.find((d) => d.id === dayId);
 
   const [sessionId, setSessionId] = useState<string | null>(null);
   const activeSession = sessionId ? sessions.find((s) => s.id === sessionId) : null;
+  const sessionCompletedRef = React.useRef(false);
   const [exercises, setExercises] = useState(() => {
     if (!day) return [];
     return day.exercises.map((ex) => ({
@@ -129,7 +138,9 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
   // Intercept navigation exit when session is incomplete
   useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove', (e) => {
-      if (!sessionId) return;
+      // Allow navigation if no session or session was just completed
+      if (!sessionId || sessionCompletedRef.current) return;
+      
       const session = sessions.find((s) => s.id === sessionId);
       if (!session || session.isCompleted) return;
 
@@ -162,7 +173,9 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
   // Android hardware back fallback
   useEffect(() => {
     const onBackPress = () => {
-      if (!sessionId) return false;
+      // Allow navigation if no session or session was just completed
+      if (!sessionId || sessionCompletedRef.current) return false;
+      
       const session = sessions.find((s) => s.id === sessionId);
       if (!session || session.isCompleted) return false;
 
@@ -366,6 +379,7 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
             });
             
             await completeSession(sessionId);
+            sessionCompletedRef.current = true;
             setIsSaving(false);
             // Cancel timer if active
             handleCancelTimer();

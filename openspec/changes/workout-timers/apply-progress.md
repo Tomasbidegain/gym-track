@@ -69,6 +69,20 @@ Standard (no test runner available)
 - Untracked `RestTimer.tsx` exists in working tree but was not committed in any prior PR. It does not block PR 3.
 - Untracked OpenSpec files from PR 1 remain untracked.
 
+## Post-Verify Fixes
+
+### CRITICAL-1: ExerciseTimer background drift
+- [x] Fixed `ExerciseTimer` to use `Date.now()` diff approach instead of `setInterval` accumulation
+- **Problem**: Timer paused literally on `AppState` background and resumed from the stale state counter, losing all elapsed wall-clock time spent in background.
+- **Solution**: Adopted the same strategy as `SessionTimer`:
+  - Store `startedAt`, `pausedDuration`, and `pauseStartedAt` refs
+  - On background: capture `pauseStartedAt = Date.now()`
+  - On foreground: add `(Date.now() - pauseStartedAt)` to `pausedDuration`
+  - Elapsed derived as `Date.now() - startedAt - pausedDuration`
+  - `setInterval` now only triggers re-renders, never accumulates time
+  - `handleStop` computes final duration from wall-clock refs, eliminating stale-closure risk
+- **Files changed**: `src/presentation/components/ExerciseTimer.tsx` (60 insertions, 27 deletions)
+
 ## Remaining Tasks
 - [ ] 4.1 Manual test: create time-based routine, verify `isTimeBased` and `targetDurationSeconds` persist
 - [ ] 4.2 Manual test: start session, verify session stopwatch increments and survives background
@@ -78,11 +92,11 @@ Standard (no test runner available)
 ## Workload / PR Boundary
 - Mode: feature-branch-chain
 - Chain strategy: feature-branch-chain
-- Current work unit: PR 3 of 3 — Screen integration & routine editor UI
+- Current work unit: PR 3 of 3 — Screen integration & routine editor UI + post-verify fix
 - Branch: `feature/workout-timers-screens` (branched from `feature/workout-timers-timer-components`)
 - Target branch: `dev` (via tracker PR aggregation)
-- Boundary: Screen-level integration of timer components and routine editor UI changes for time-based exercises
-- Estimated review budget impact: ~160 insertions across 4 modified files — well under 400-line budget
+- Boundary: Screen-level integration, routine editor UI, and critical background-drift fix
+- Estimated review budget impact: ~160 insertions across 4 modified files + 60 insertions for timer fix — still under 400-line budget
 
 ## Status
-16/18 tasks complete. Ready for verify phase.
+17/18 tasks complete (16 original + 1 post-verify fix). Ready for verify phase.

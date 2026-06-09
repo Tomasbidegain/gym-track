@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Alert,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import type { TrainScreenProps } from '../../navigation/types';
 import { useRoutines } from '../../hooks/useRoutines';
 import { useCompletedDaysInWeek } from '../../hooks/useCompletedDaysInWeek';
@@ -17,7 +18,14 @@ export function DaySelectionScreen({
 }: TrainScreenProps<'DaySelection'>) {
   const { routineId } = route.params;
   const { routines } = useRoutines();
-  const { completedDayIds } = useCompletedDaysInWeek(routineId);
+  const { completedDayIds, refresh } = useCompletedDaysInWeek(routineId);
+
+  // Refresh completed days when screen receives focus (e.g., after completing a workout)
+  useFocusEffect(
+    React.useCallback(() => {
+      refresh();
+    }, [refresh])
+  );
 
   const routine = routines.find((r) => r.id === routineId);
 
