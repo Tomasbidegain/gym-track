@@ -11,6 +11,7 @@ import {
   orderBy,
   type Firestore,
   type Timestamp,
+  type FieldValue,
 } from 'firebase/firestore';
 import type { Routine, RoutineDay, RoutineExercise } from '../../../domain/entities/Routine';
 import type { IRoutineRepository } from '../../../domain/repositories/IRoutineRepository';
@@ -30,29 +31,61 @@ interface FirestoreRoutineData {
   updatedAt: Timestamp;
 }
 
+function defaultRoutineExercise(ex: RoutineExercise): RoutineExercise {
+  return {
+    ...ex,
+    isTimeBased: ex.isTimeBased ?? false,
+    targetDurationSeconds: ex.targetDurationSeconds ?? 0,
+  };
+}
+
+function cleanUndefinedValues(obj: any): any {
+  if (obj === null || typeof obj !== 'object') {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(cleanUndefinedValues);
+  }
+
+  const cleaned: any = {};
+  for (const key in obj) {
+    if (obj[key] !== undefined) {
+      cleaned[key] = cleanUndefinedValues(obj[key]);
+    }
+  }
+  return cleaned;
+}
+
 function toRoutine(id: string, data: FirestoreRoutineData): Routine {
   let days: RoutineDay[];
   if (data.days && data.days.length > 0) {
-    days = data.days;
+    days = data.days.map((day) => ({
+      ...day,
+      exercises: day.exercises.map(defaultRoutineExercise),
+    }));
   } else if (data.exercises && data.exercises.length > 0) {
     days = [
       {
         id: 'day-1',
         name: 'Dia 1',
-        exercises: data.exercises,
+        exercises: data.exercises.map(defaultRoutineExercise),
       },
     ];
   } else {
     days = [];
   }
 
+  const createdAt = data.createdAt?.toDate?.() ?? new Date();
+  const updatedAt = data.updatedAt?.toDate?.() ?? createdAt;
+
   return {
     id,
     name: data.name,
     description: data.description,
     days,
-    createdAt: data.createdAt.toDate(),
-    updatedAt: data.updatedAt.toDate(),
+    createdAt,
+    updatedAt,
   };
 }
 
@@ -98,13 +131,14 @@ export class FirestoreRoutineRepository implements IRoutineRepository {
     try {
       const colRef = collection(this.firestore, routinesPath(uid));
       const now = serverTimestamp();
-      const docRef = await addDoc(colRef, {
+      const docData = {
         name: routine.name,
         description: routine.description,
-        days: routine.days,
+        days: cleanUndefinedValues(routine.days),
         createdAt: now,
         updatedAt: now,
-      });
+      };
+      const docRef = await addDoc(colRef, docData);
       return {
         id: docRef.id,
         name: routine.name,
@@ -126,11 +160,11 @@ export class FirestoreRoutineRepository implements IRoutineRepository {
     try {
       const docRef = doc(this.firestore, routinesPath(uid), routineId);
       const updateData: Record<string, unknown> = {
-        ...data,
         updatedAt: serverTimestamp(),
       };
-      delete updateData.id;
-      delete updateData.createdAt;
+      if (data.name !== undefined) updateData.name = data.name.trim();
+      if (data.description !== undefined) updateData.description = data.description.trim();
+      if (data.days !== undefined) updateData.days = cleanUndefinedValues(data.days);
       await updateDoc(docRef, updateData as any);
       const updated = await this.getById(uid, routineId);
       if (!updated) {

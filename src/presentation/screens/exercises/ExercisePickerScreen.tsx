@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  SafeAreaView,
 } from 'react-native';
 import type { RoutineScreenProps } from '../../navigation/types';
 import { useExercises } from '../../hooks/useExercises';
@@ -132,7 +133,7 @@ export function ExercisePickerScreen({ navigation }: RoutineScreenProps<'Exercis
   );
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
@@ -222,7 +223,7 @@ export function ExercisePickerScreen({ navigation }: RoutineScreenProps<'Exercis
           </Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -233,7 +234,7 @@ const styles = StyleSheet.create({
   },
   searchContainer: {
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingTop: 8,
     paddingBottom: 8,
     backgroundColor: '#fff',
   },

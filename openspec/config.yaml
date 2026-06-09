@@ -1,9 +1,9 @@
 schema: spec-driven
 
 context: |
-  Tech stack: React Native + Expo (SDK 54) + TypeScript + Firebase (Firestore + Auth)
-  Architecture: Clean Architecture / Hexagonal
-  Testing: Manual / TBD
+  Tech stack: React Native 0.81.5 + Expo SDK ~54.0.0 + TypeScript ~5.8.0 + Firebase ^12.14.0
+  Architecture: Clean / Hexagonal (domain / data / presentation layers)
+  Testing: No test runner or test files detected
   Style: Functional components, React Context + custom hooks, Spanish UI labels
 
 rules:
@@ -28,3 +28,14 @@ rules:
     coverage_threshold: 0
   archive:
     - Warn before merging destructive deltas
+
+testing:
+  strict_tdd: false
+  runner: none
+  unit: false
+  integration: false
+  e2e: false
+  coverage: false
+  linter: false
+  type_checker: true
+  formatter: false

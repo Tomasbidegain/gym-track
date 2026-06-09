@@ -5,8 +5,9 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Alert,
+  ActivityIndicator,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import type { TrainScreenProps } from '../../navigation/types';
 import { useRoutines } from '../../hooks/useRoutines';
 import { useCompletedDaysInWeek } from '../../hooks/useCompletedDaysInWeek';
@@ -17,7 +18,14 @@ export function DaySelectionScreen({
 }: TrainScreenProps<'DaySelection'>) {
   const { routineId } = route.params;
   const { routines } = useRoutines();
-  const { completedDayIds } = useCompletedDaysInWeek(routineId);
+  const { completedDayIds, isLoading, refresh } = useCompletedDaysInWeek(routineId);
+
+  // Refresh completed days when screen receives focus (e.g., after completing a workout)
+  useFocusEffect(
+    React.useCallback(() => {
+      refresh();
+    }, [refresh])
+  );
 
   const routine = routines.find((r) => r.id === routineId);
 
@@ -32,16 +40,17 @@ export function DaySelectionScreen({
     );
   }
 
-  const handleDayPress = (dayId: string, dayName: string) => {
-    if (completedDayIds.has(dayId)) {
-      Alert.alert(
-        'Dia completado',
-        `El dia "${dayName}" ya fue completado esta semana. Elegi otro dia.`,
-      );
-      return;
-    }
+  const handleDayPress = (dayId: string) => {
     navigation.navigate('WorkoutSession', { routineId, dayId });
   };
+
+  if (isLoading) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color="#2f95dc" />
+      </View>
+    );
+  }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -54,9 +63,8 @@ export function DaySelectionScreen({
           <TouchableOpacity
             key={day.id}
             style={[styles.dayCard, isCompleted && styles.dayCardCompleted]}
-            onPress={() => handleDayPress(day.id, day.name)}
-            activeOpacity={isCompleted ? 1 : 0.8}
-            disabled={isCompleted}
+            onPress={() => handleDayPress(day.id)}
+            activeOpacity={0.8}
           >
             <View style={styles.dayCardRow}>
               <Text style={[styles.dayName, isCompleted && styles.dayNameCompleted]}>

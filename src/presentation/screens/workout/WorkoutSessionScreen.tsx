@@ -10,33 +10,102 @@ import {
   Platform,
   Alert,
   BackHandler,
+  ActivityIndicator,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { RestTimer } from '../../components/RestTimer';
+import { SessionTimer } from '../../components/SessionTimer';
+import { ExerciseTimer } from '../../components/ExerciseTimer';
 import type { TrainScreenProps } from '../../navigation/types';
 import { useRoutines } from '../../hooks/useRoutines';
 import { useWorkoutSessionContext } from '../../context/WorkoutSessionContext';
 import { useCompletedDaysInWeek } from '../../hooks/useCompletedDaysInWeek';
 import { generateSetsFromRoutine } from '../../../domain';
-import type { RoutineDay } from '../../../domain';
+import type { RoutineDay, RoutineExercise, WorkoutExercise, WorkoutSet } from '../../../domain';
+
+// Extended exercise type that includes both routine metadata and workout set data
+type SessionExercise = WorkoutExercise & {
+  restSeconds: number;
+  isTimeBased?: boolean;
+  targetDurationSeconds?: number;
+};
 
 export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'WorkoutSession'>) {
-  const { routineId, dayId } = route.params;
+  const { routineId, dayId: initialDayId } = route.params;
   const { routines, updateRoutine } = useRoutines();
   const { startSession, updateSet, completeSession, markSessionComplete, sessions } = useWorkoutSessionContext();
-  const { completedDayIds } = useCompletedDaysInWeek(routineId);
+  const { completedDayIds, isLoading: isLoadingCompletedDays, refresh: refreshCompletedDays } = useCompletedDaysInWeek(routineId);
+
+  // Local state for current day (no navigation between days)
+  const [currentDayId, setCurrentDayId] = useState(initialDayId);
+
+  // Refresh completed days only once on mount
+  useEffect(() => {
+    refreshCompletedDays();
+  }, [refreshCompletedDays]);
 
   const routine = routines.find((r) => r.id === routineId);
-  const day = routine?.days.find((d) => d.id === dayId);
+  const day = routine?.days.find((d) => d.id === currentDayId);
+
+  const isDayCompleted = completedDayIds.has(currentDayId);
+
+  // Find the completed session for this day (most recent completed this week)
+  const completedSession = React.useMemo(() => {
+    if (!isDayCompleted) return null;
+    return sessions.find(
+      (s) => s.dayId === currentDayId && s.routineId === routineId && s.isCompleted
+    ) || null;
+  }, [isDayCompleted, sessions, currentDayId, routineId]);
 
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [exercises, setExercises] = useState(() => {
+  const activeSession = sessionId ? sessions.find((s) => s.id === sessionId) : null;
+  const sessionCompletedRef = React.useRef(false);
+
+  const [exercises, setExercises] = useState<SessionExercise[]>(() => {
     if (!day) return [];
+    if (completedSession) {
+      // Merge session data with routine metadata for completed days
+      return day.exercises.map((routineEx) => {
+        const sessionEx = completedSession.exercises.find(
+          (se) => se.exerciseId === routineEx.exerciseId
+        );
+        return {
+          ...routineEx,
+          sets: sessionEx ? sessionEx.sets : generateSetsFromRoutine(routineEx),
+        };
+      });
+    }
     return day.exercises.map((ex) => ({
       ...ex,
       sets: generateSetsFromRoutine(ex),
     }));
   });
   const [isSaving, setIsSaving] = useState(false);
+
+  // When switching days, update exercises based on completion status
+  useEffect(() => {
+    if (isDayCompleted && completedSession && day) {
+      const mergedExercises = day.exercises.map((routineEx) => {
+        const sessionEx = completedSession.exercises.find(
+          (se) => se.exerciseId === routineEx.exerciseId
+        );
+        return {
+          ...routineEx,
+          sets: sessionEx ? sessionEx.sets : generateSetsFromRoutine(routineEx),
+        };
+      });
+      setExercises(mergedExercises);
+      setSessionId(null);
+    } else if (!isDayCompleted && day) {
+      setExercises(
+        day.exercises.map((ex) => ({
+          ...ex,
+          sets: generateSetsFromRoutine(ex),
+        }))
+      );
+      setSessionId(null);
+    }
+  }, [isDayCompleted, completedSession, day, currentDayId]);
 
   // Timer states
   const [timerActive, setTimerActive] = useState(false);
@@ -126,7 +195,9 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
   // Intercept navigation exit when session is incomplete
   useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove', (e) => {
-      if (!sessionId) return;
+      // Allow navigation if no session or session was just completed
+      if (!sessionId || sessionCompletedRef.current) return;
+      
       const session = sessions.find((s) => s.id === sessionId);
       if (!session || session.isCompleted) return;
 
@@ -159,7 +230,9 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
   // Android hardware back fallback
   useEffect(() => {
     const onBackPress = () => {
-      if (!sessionId) return false;
+      // Allow navigation if no session or session was just completed
+      if (!sessionId || sessionCompletedRef.current) return false;
+      
       const session = sessions.find((s) => s.id === sessionId);
       if (!session || session.isCompleted) return false;
 
@@ -221,15 +294,7 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
       set.completed = !set.completed;
       setExercises(newExercises);
 
-      await updateSet(sessionId, {
-        exerciseIndex,
-        setIndex,
-        reps: set.reps,
-        weight: set.weight,
-        completed: set.completed,
-      });
-
-      // Start timer when set is completed (not when uncompleted)
+      // Start timer immediately when set is completed (not when uncompleted)
       if (!wasCompleted && set.completed && routine) {
         const exercise = newExercises[exerciseIndex];
         const restSeconds = exercise.restSeconds || 90;
@@ -243,6 +308,14 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
         setTimerActive(true);
         setTimerRunning(true);
       }
+
+      await updateSet(sessionId, {
+        exerciseIndex,
+        setIndex,
+        reps: set.reps,
+        weight: set.weight,
+        completed: set.completed,
+      });
     },
     [sessionId, exercises, updateSet, routine, timerActive, timerRunning],
   );
@@ -274,6 +347,44 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
     setTimerTotal((prev) => prev + seconds);
   }, []);
 
+  const handleTimerComplete = useCallback(
+    async (exerciseIndex: number, setIndex: number, durationSeconds: number) => {
+      if (!sessionId) return;
+      if (durationSeconds <= 0) return;
+
+      const newExercises = [...exercises];
+      const set = newExercises[exerciseIndex].sets[setIndex];
+      set.completed = true;
+      set.durationSeconds = durationSeconds;
+      setExercises(newExercises);
+
+      // Start rest timer immediately
+      if (routine) {
+        const exercise = newExercises[exerciseIndex];
+        const restSeconds = exercise.restSeconds || 90;
+        const nextSetIdx = exercise.sets.findIndex((s, idx) => idx > setIndex && !s.completed);
+
+        setTimerExerciseName(exercise.exerciseName);
+        setTimerSetNumber(setIndex + 1);
+        setTimerNextSet(nextSetIdx >= 0 ? nextSetIdx + 1 : undefined);
+        setTimerSeconds(restSeconds);
+        setTimerTotal(restSeconds);
+        setTimerActive(true);
+        setTimerRunning(true);
+      }
+
+      await updateSet(sessionId, {
+        exerciseIndex,
+        setIndex,
+        reps: set.reps,
+        weight: set.weight,
+        completed: true,
+        durationSeconds,
+      });
+    },
+    [sessionId, exercises, updateSet, routine],
+  );
+
   const handleCompleteSession = useCallback(async () => {
     if (!sessionId || !routine) return;
     Alert.alert(
@@ -288,19 +399,28 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
             
             // Update routine with new weights/reps
             const updatedDays: RoutineDay[] = routine.days.map((d) => {
-              if (d.id !== dayId) return d;
+              if (d.id !== currentDayId) return d;
               
               const updatedExercises = d.exercises.map((ex) => {
                 const sessionExercise = exercises.find((se) => se.exerciseId === ex.exerciseId);
                 if (!sessionExercise) return ex;
                 
-                // Calculate average weight and reps from completed sets
+                // Calculate averages from completed sets
                 const completedSets = sessionExercise.sets.filter((s) => s.completed);
                 if (completedSets.length === 0) return ex;
-                
+
+                if (ex.isTimeBased) {
+                  const avgDuration = completedSets.reduce((sum, s) => sum + (s.durationSeconds || 0), 0) / completedSets.length;
+                  return {
+                    ...ex,
+                    targetSets: completedSets.length,
+                    targetDurationSeconds: Math.round(avgDuration),
+                  };
+                }
+
                 const avgWeight = completedSets.reduce((sum, s) => sum + s.weight, 0) / completedSets.length;
                 const avgReps = completedSets.reduce((sum, s) => sum + s.reps, 0) / completedSets.length;
-                
+
                 return {
                   ...ex,
                   targetSets: completedSets.length,
@@ -316,6 +436,7 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
             });
             
             await completeSession(sessionId);
+            sessionCompletedRef.current = true;
             setIsSaving(false);
             // Cancel timer if active
             handleCancelTimer();
@@ -324,7 +445,7 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
         },
       ],
     );
-  }, [sessionId, routine, dayId, exercises, completeSession, updateRoutine, routineId, navigation]);
+  }, [sessionId, routine, currentDayId, exercises, completeSession, updateRoutine, routineId, navigation]);
 
   if (!routine || !day) {
     return (
@@ -340,8 +461,13 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.header}>
-        <Text style={styles.routineName}>{routine.name}</Text>
-        <Text style={styles.dayName}>{day.name}</Text>
+        <View style={styles.headerInfo}>
+          <Text style={styles.routineName}>{routine.name}</Text>
+          <Text style={styles.dayName}>{day.name}</Text>
+        </View>
+        {activeSession && (
+          <SessionTimer startedAt={activeSession.startedAt} />
+        )}
       </View>
 
       <ScrollView
@@ -352,129 +478,197 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
       >
         {routine.days.map((d) => {
           const isDayCompleted = completedDayIds.has(d.id);
-          const isActive = d.id === dayId;
+          const isActive = d.id === currentDayId;
           return (
             <TouchableOpacity
               key={d.id}
               style={[
                 styles.dayTab,
-                isActive && styles.dayTabActive,
-                isDayCompleted && styles.dayTabCompleted,
+                isActive && isDayCompleted && styles.dayTabActiveCompleted,
+                isActive && !isDayCompleted && styles.dayTabActive,
+                !isActive && isDayCompleted && styles.dayTabCompleted,
               ]}
               onPress={() => {
-                if (d.id === dayId) return;
-                if (isDayCompleted) {
-                  Alert.alert('Dia completado', 'Este dia ya fue completado esta semana.');
-                  return;
-                }
-                navigation.replace('WorkoutSession', { routineId, dayId: d.id });
+                if (d.id === currentDayId) return;
+                setCurrentDayId(d.id);
               }}
               activeOpacity={0.8}
             >
               <Text
                 style={[
                   styles.dayTabText,
-                  isActive && styles.dayTabTextActive,
-                  isDayCompleted && styles.dayTabTextCompleted,
+                  isActive && isDayCompleted && styles.dayTabTextActiveCompleted,
+                  isActive && !isDayCompleted && styles.dayTabTextActive,
+                  !isActive && isDayCompleted && styles.dayTabTextCompleted,
                 ]}
               >
                 {d.name}
               </Text>
-              {isDayCompleted && <Text style={styles.dayTabCheckmark}>✓</Text>}
+              {isDayCompleted && (
+                <Text style={[
+                  styles.dayTabCheckmark,
+                  isActive && isDayCompleted && styles.dayTabTextActiveCompleted
+                ]}>
+                  ✓
+                </Text>
+              )}
             </TouchableOpacity>
           );
         })}
       </ScrollView>
 
-      <ScrollView style={styles.scrollContent}>
-        {exercises.map((exercise, exIndex) => (
-          <View key={exercise.exerciseId} style={styles.exerciseCard}>
-            <Text style={styles.exerciseName}>{exercise.exerciseName}</Text>
-            <Text style={styles.exerciseInfo}>
-              {exercise.muscleGroup} • {exercise.equipment}
-            </Text>
-
-            <View style={styles.setsContainer}>
-              {exercise.sets.map((set, setIndex) => (
-                <View key={set.setNumber} style={styles.setRow}>
-                  <Text style={styles.setNumber}>Set {set.setNumber}</Text>
-                  
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>Peso (kg)</Text>
-                    <TextInput
-                      style={styles.setInput}
-                      value={String(set.weight)}
-                      onChangeText={(text) => {
-                        const val = parseFloat(text) || 0;
-                        handleUpdateSet(exIndex, setIndex, 'weight', val);
-                      }}
-                      keyboardType="numeric"
-                      placeholder="0"
-                      editable={!!sessionId}
-                    />
-                  </View>
-
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>Reps</Text>
-                    <TextInput
-                      style={styles.setInput}
-                      value={String(set.reps)}
-                      onChangeText={(text) => {
-                        const val = parseInt(text, 10) || 0;
-                        handleUpdateSet(exIndex, setIndex, 'reps', val);
-                      }}
-                      keyboardType="numeric"
-                      placeholder="0"
-                      editable={!!sessionId}
-                    />
-                  </View>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.checkButton, 
-                      set.completed && styles.checkButtonActive,
-                      (timerActive && timerRunning) && styles.checkButtonDisabled
-                    ]}
-                    onPress={() => handleToggleSet(exIndex, setIndex)}
-                    disabled={!sessionId || (timerActive && timerRunning)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.checkButtonText}>
-                      {set.completed ? '✓' : ''}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
+      {isLoadingCompletedDays ? (
+        <View style={styles.contentLoadingContainer}>
+          <ActivityIndicator size="small" color="#2f95dc" />
+        </View>
+      ) : (
+        <>
+          {isDayCompleted && completedSession && (
+            <View style={styles.completedBanner}>
+              <Text style={styles.completedBannerText}>
+                Día completado
+              </Text>
+              <Text style={styles.completedBannerSubtext}>
+                Duración: {(() => {
+                  const mins = Math.floor((completedSession.totalDurationSeconds || 0) / 60);
+                  const secs = (completedSession.totalDurationSeconds || 0) % 60;
+                  return `${mins} min ${secs} seg`;
+                })()}
+              </Text>
             </View>
-          </View>
-        ))}
-      </ScrollView>
+          )}
 
-      <View style={styles.footer}>
-        {!sessionId ? (
-          <TouchableOpacity
-            style={[styles.startButton, isSaving && styles.buttonDisabled]}
-            onPress={handleStartSession}
-            disabled={isSaving}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.startButtonText}>
-              {isSaving ? 'Iniciando...' : 'Iniciar entrenamiento'}
-            </Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            style={[styles.completeButton, isSaving && styles.buttonDisabled]}
-            onPress={handleCompleteSession}
-            disabled={isSaving}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.completeButtonText}>
-              {isSaving ? 'Finalizando...' : 'Finalizar entrenamiento'}
-            </Text>
-          </TouchableOpacity>
-        )}
-      </View>
+          <ScrollView style={styles.scrollContent}>
+            {exercises.map((exercise, exIndex) => (
+              <View key={exercise.exerciseId} style={styles.exerciseCard}>
+                <Text style={styles.exerciseName}>{exercise.exerciseName}</Text>
+                <Text style={styles.exerciseInfo}>
+                  {exercise.muscleGroup} • {exercise.equipment}
+                </Text>
+
+                <View style={styles.setsContainer}>
+                  {exercise.sets.map((set, setIndex) => (
+                    <View key={set.setNumber} style={styles.setRow}>
+                      <Text style={styles.setNumber}>Set {set.setNumber}</Text>
+
+                      {exercise.isTimeBased ? (
+                        <>
+                          <View style={styles.inputGroup}>
+                            <Text style={styles.inputLabel}>Peso (kg)</Text>
+                            <TextInput
+                              style={styles.setInput}
+                              value={String(set.weight)}
+                              onChangeText={(text) => {
+                                const val = parseFloat(text) || 0;
+                                handleUpdateSet(exIndex, setIndex, 'weight', val);
+                              }}
+                              keyboardType="numeric"
+                              placeholder="0"
+                              editable={!!sessionId && !isDayCompleted}
+                            />
+                          </View>
+
+                          {sessionId && !isDayCompleted ? (
+                            <ExerciseTimer
+                              onComplete={(duration) => handleTimerComplete(exIndex, setIndex, duration)}
+                              targetDuration={exercise.targetDurationSeconds}
+                            />
+                          ) : (
+                            <View style={styles.timerPlaceholder}>
+                              <Text style={styles.timerPlaceholderText}>
+                                {set.durationSeconds
+                                  ? `${Math.floor(set.durationSeconds / 60).toString().padStart(2, '0')}:${(set.durationSeconds % 60).toString().padStart(2, '0')}`
+                                  : '--:--'}
+                              </Text>
+                            </View>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <View style={styles.inputGroup}>
+                            <Text style={styles.inputLabel}>Peso (kg)</Text>
+                            <TextInput
+                              style={styles.setInput}
+                              value={String(set.weight)}
+                              onChangeText={(text) => {
+                                const val = parseFloat(text) || 0;
+                                handleUpdateSet(exIndex, setIndex, 'weight', val);
+                              }}
+                              keyboardType="numeric"
+                              placeholder="0"
+                              editable={!!sessionId && !isDayCompleted}
+                            />
+                          </View>
+
+                          <View style={styles.inputGroup}>
+                            <Text style={styles.inputLabel}>Reps</Text>
+                            <TextInput
+                              style={styles.setInput}
+                              value={String(set.reps)}
+                              onChangeText={(text) => {
+                                const val = parseInt(text, 10) || 0;
+                                handleUpdateSet(exIndex, setIndex, 'reps', val);
+                              }}
+                              keyboardType="numeric"
+                              placeholder="0"
+                              editable={!!sessionId && !isDayCompleted}
+                            />
+                          </View>
+
+                          {sessionId && !isDayCompleted && (
+                            <TouchableOpacity
+                              style={[
+                                styles.checkButton,
+                                set.completed && styles.checkButtonActive,
+                                (timerActive && timerRunning) && styles.checkButtonDisabled
+                              ]}
+                              onPress={() => handleToggleSet(exIndex, setIndex)}
+                              disabled={timerActive && timerRunning}
+                              activeOpacity={0.8}
+                            >
+                              <Text style={styles.checkButtonText}>
+                                {set.completed ? '✓' : ''}
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                        </>
+                      )}
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ))}
+          </ScrollView>
+
+          {!isDayCompleted && (
+            <View style={styles.footer}>
+              {!sessionId ? (
+                <TouchableOpacity
+                  style={[styles.startButton, isSaving && styles.buttonDisabled]}
+                  onPress={handleStartSession}
+                  disabled={isSaving}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.startButtonText}>
+                    {isSaving ? 'Iniciando...' : 'Iniciar entrenamiento'}
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.completeButton, isSaving && styles.buttonDisabled]}
+                  onPress={handleCompleteSession}
+                  disabled={isSaving}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.completeButtonText}>
+                    {isSaving ? 'Finalizando...' : 'Finalizar entrenamiento'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+        </>
+      )}
 
       <RestTimer
         isActive={timerActive}
@@ -498,11 +692,23 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
+  contentLoadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     padding: 16,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
+  },
+  headerInfo: {
+    flex: 1,
   },
   routineName: {
     fontSize: 20,
@@ -544,6 +750,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f9f0',
     borderColor: '#4caf50',
   },
+  dayTabActiveCompleted: {
+    backgroundColor: '#4caf50',
+    borderColor: '#388e3c',
+  },
   dayTabText: {
     fontSize: 13,
     fontWeight: '600',
@@ -554,6 +764,9 @@ const styles = StyleSheet.create({
   },
   dayTabTextCompleted: {
     color: '#4caf50',
+  },
+  dayTabTextActiveCompleted: {
+    color: '#fff',
   },
   dayTabCheckmark: {
     fontSize: 14,
@@ -644,6 +857,21 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#fff',
   },
+  timerPlaceholder: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: '#ddd',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+  },
+  timerPlaceholderText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#888',
+  },
   footer: {
     padding: 16,
     paddingBottom: 24,
@@ -675,6 +903,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#fff',
+  },
+  completedBanner: {
+    backgroundColor: '#4caf50',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  completedBannerText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  completedBannerSubtext: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#e8f5e9',
+    marginTop: 2,
   },
   errorText: {
     fontSize: 16,

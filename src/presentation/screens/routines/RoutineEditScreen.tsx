@@ -3,12 +3,13 @@ import {
   View,
   Text,
   TextInput,
-  ScrollView,
   TouchableOpacity,
   StyleSheet,
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
+  Switch,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { RoutineScreenProps } from '../../navigation/types';
@@ -50,7 +51,7 @@ function createDefaultRoutineExercise(exercise: Exercise, order: number): Routin
 
 export function RoutineEditScreen({ route, navigation }: RoutineScreenProps<'RoutineEdit'>) {
   const { routineId } = route.params;
-  const { routines, updateRoutine, clearError } = useRoutines();
+  const { routines, updateRoutine, clearError, error: routineError } = useRoutines();
   const { exercises: catalogExercises } = useExercises();
   const picker = useExercisePicker();
 
@@ -62,6 +63,7 @@ export function RoutineEditScreen({ route, navigation }: RoutineScreenProps<'Rou
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [days, setDays] = useState<RoutineDay[]>([]);
+  const [activeDayIndex, setActiveDayIndex] = useState(0);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isReady, setIsReady] = useState(false);
@@ -138,7 +140,11 @@ export function RoutineEditScreen({ route, navigation }: RoutineScreenProps<'Rou
 
   const addDay = useCallback(() => {
     clearFormError();
-    setDays((prev) => [...prev, createDefaultDay(`Dia ${prev.length + 1}`)]);
+    setDays((prev) => {
+      const newDays = [...prev, createDefaultDay(`Dia ${prev.length + 1}`)];
+      setActiveDayIndex(newDays.length - 1);
+      return newDays;
+    });
   }, [clearFormError]);
 
   const removeDay = useCallback(
@@ -154,12 +160,20 @@ export function RoutineEditScreen({ route, navigation }: RoutineScreenProps<'Rou
           text: 'Eliminar',
           style: 'destructive',
           onPress: () => {
-            setDays((prev) => prev.filter((_, i) => i !== dayIndex));
+            setDays((prev) => {
+              const newDays = prev.filter((_, i) => i !== dayIndex);
+              if (activeDayIndex >= newDays.length) {
+                setActiveDayIndex(newDays.length - 1);
+              } else if (activeDayIndex === dayIndex) {
+                setActiveDayIndex(Math.max(0, dayIndex - 1));
+              }
+              return newDays;
+            });
           },
         },
       ]);
     },
-    [clearFormError, days],
+    [clearFormError, days, activeDayIndex],
   );
 
   const updateDayName = useCallback((dayIndex: number, newName: string) => {
@@ -258,6 +272,17 @@ export function RoutineEditScreen({ route, navigation }: RoutineScreenProps<'Rou
           setFormError('Los sets deben ser al menos 1');
           return false;
         }
+        if (ex.isTimeBased) {
+          if (!ex.targetDurationSeconds || ex.targetDurationSeconds <= 0) {
+            setFormError('La duracion debe ser mayor a 0 para ejercicios basados en tiempo');
+            return false;
+          }
+        } else {
+          if (ex.targetReps < 1) {
+            setFormError('Las repeticiones deben ser al menos 1');
+            return false;
+          }
+        }
         if (ex.restSeconds < 0) {
           setFormError('El descanso no puede ser negativo');
           return false;
@@ -284,7 +309,11 @@ export function RoutineEditScreen({ route, navigation }: RoutineScreenProps<'Rou
       if (updated) {
         picker.clear();
         navigation.goBack();
+      } else {
+        setFormError('No se pudo actualizar la rutina');
       }
+    } catch (err) {
+      setFormError('Error al actualizar. Verifica tu conexion.');
     } finally {
       setIsSaving(false);
     }
@@ -304,13 +333,15 @@ export function RoutineEditScreen({ route, navigation }: RoutineScreenProps<'Rou
     );
   }
 
+  const activeDay = days[activeDayIndex];
+
   return (
     <GestureHandlerRootView style={styles.container}>
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        <View style={styles.header}>
           <Text style={styles.label}>Nombre</Text>
           <TextInput
             style={styles.input}
@@ -338,122 +369,190 @@ export function RoutineEditScreen({ route, navigation }: RoutineScreenProps<'Rou
             maxLength={500}
             textAlignVertical="top"
           />
+        </View>
 
-          {days.map((day, dayIndex) => (
-            <View key={day.id} style={styles.daySection}>
-              <View style={styles.dayHeader}>
-                <TextInput
-                  style={styles.dayNameInput}
-                  value={day.name}
-                  onChangeText={(text) => updateDayName(dayIndex, text)}
-                  placeholder="Nombre del dia"
-                  maxLength={100}
-                />
-                <TouchableOpacity onPress={() => removeDay(dayIndex)} activeOpacity={0.8}>
-                  <Text style={styles.removeDayText}>Eliminar dia</Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.dayExercisesHeader}>
-                <Text style={styles.dayExercisesTitle}>Ejercicios</Text>
-                <TouchableOpacity
-                  style={styles.addButton}
-                  onPress={() => openPicker(dayIndex)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.addButtonText}>+ Agregar ejercicios</Text>
-                </TouchableOpacity>
-              </View>
-
-              {day.exercises.length > 0 ? (
-                <DraggableFlatList
-                  data={day.exercises}
-                  onDragEnd={({ data }) => handleDragEnd(dayIndex, data)}
-                  keyExtractor={(item) => `${item.exerciseId}-${item.order}`}
-                  renderItem={({ item, drag }) => (
-                    <ScaleDecorator>
-                      <TouchableOpacity onLongPress={drag} activeOpacity={0.9} style={styles.exerciseCard}>
-                        <View style={styles.exerciseHeader}>
-                          <Text style={styles.exerciseName}>{item.exerciseName}</Text>
-                          <TouchableOpacity
-                            onPress={() => removeExercise(dayIndex, item.order)}
-                            activeOpacity={0.8}
-                          >
-                            <Text style={styles.removeText}>Eliminar</Text>
-                          </TouchableOpacity>
-                        </View>
-
-                        <View style={styles.fieldsRow}>
-                          <View style={styles.field}>
-                            <Text style={styles.fieldLabel}>Series</Text>
-                            <TextInput
-                              style={styles.fieldInput}
-                              value={String(item.targetSets)}
-                              onChangeText={(text) => {
-                                const val = parseInt(text, 10);
-                                updateExercise(dayIndex, item.order, { targetSets: isNaN(val) ? 0 : val });
-                                clearFormError();
-                              }}
-                              keyboardType="numeric"
-                              maxLength={2}
-                            />
-                          </View>
-                          <View style={styles.field}>
-                            <Text style={styles.fieldLabel}>Reps</Text>
-                            <TextInput
-                              style={styles.fieldInput}
-                              value={String(item.targetReps)}
-                              onChangeText={(text) => {
-                                const val = parseInt(text, 10);
-                                updateExercise(dayIndex, item.order, { targetReps: isNaN(val) ? 0 : val });
-                                clearFormError();
-                              }}
-                              keyboardType="numeric"
-                              maxLength={3}
-                            />
-                          </View>
-                          <View style={styles.field}>
-                            <Text style={styles.fieldLabel}>Descanso (s)</Text>
-                            <TextInput
-                              style={styles.fieldInput}
-                              value={String(item.restSeconds)}
-                              onChangeText={(text) => {
-                                const val = parseInt(text, 10);
-                                updateExercise(dayIndex, item.order, { restSeconds: isNaN(val) ? 0 : val });
-                                clearFormError();
-                              }}
-                              keyboardType="numeric"
-                              maxLength={4}
-                            />
-                          </View>
-                        </View>
-
-                        <TextInput
-                          style={[styles.input, styles.notesInput]}
-                          value={item.notes ?? ''}
-                          onChangeText={(text) => updateExercise(dayIndex, item.order, { notes: text || undefined })}
-                          placeholder="Notas (opcional)"
-                          maxLength={200}
-                        />
-                      </TouchableOpacity>
-                    </ScaleDecorator>
-                  )}
-                  scrollEnabled={false}
-                />
-              ) : (
-                <Text style={styles.noExercisesText}>
-                  Todavia no agregaste ejercicios a este dia.
+        {/* Day Tabs */}
+        <View style={styles.dayTabsContainer}>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.dayTabsContent}
+          >
+            {days.map((day, index) => (
+              <TouchableOpacity
+                key={day.id}
+                style={[
+                  styles.dayTab,
+                  index === activeDayIndex && styles.dayTabActive,
+                ]}
+                onPress={() => setActiveDayIndex(index)}
+                activeOpacity={0.8}
+              >
+                <Text style={[
+                  styles.dayTabText,
+                  index === activeDayIndex && styles.dayTabTextActive,
+                ]}>
+                  {day.name}
                 </Text>
+                {days.length > 1 && (
+                  <TouchableOpacity
+                    style={styles.dayTabRemove}
+                    onPress={() => removeDay(index)}
+                    activeOpacity={0.6}
+                  >
+                    <Text style={styles.dayTabRemoveText}>×</Text>
+                  </TouchableOpacity>
+                )}
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={styles.dayTabAdd} onPress={addDay} activeOpacity={0.8}>
+              <Text style={styles.dayTabAddText}>+</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+
+        {/* Active Day Content */}
+        <View style={styles.dayContent}>
+          <View style={styles.dayContentHeader}>
+            <Text style={styles.dayContentTitle}>{activeDay.name}</Text>
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={() => openPicker(activeDayIndex)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.addButtonText}>+ Agregar ejercicios</Text>
+            </TouchableOpacity>
+          </View>
+
+          {activeDay.exercises.length > 0 ? (
+            <DraggableFlatList
+              data={activeDay.exercises}
+              onDragEnd={({ data }) => handleDragEnd(activeDayIndex, data)}
+              keyExtractor={(item) => `${item.exerciseId}-${item.order}`}
+              renderItem={({ item, drag, isActive }) => (
+                <ScaleDecorator activeScale={0.98}>
+                  <TouchableOpacity 
+                    onLongPress={drag} 
+                    activeOpacity={0.9} 
+                    style={[
+                      styles.exerciseCard,
+                      isActive && styles.exerciseCardActive,
+                    ]}
+                  >
+                    <View style={styles.exerciseHeader}>
+                      <View style={styles.dragHandle}>
+                        <Text style={styles.dragHandleText}>⇅</Text>
+                      </View>
+                      <Text style={styles.exerciseName}>{item.exerciseName}</Text>
+                      <TouchableOpacity
+                        onPress={() => removeExercise(activeDayIndex, item.order)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.removeText}>Eliminar</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.toggleRow}>
+                      <Text style={styles.toggleLabel}>Ejercicio basado en tiempo</Text>
+                      <Switch
+                        value={item.isTimeBased ?? false}
+                        onValueChange={(val) => {
+                          updateExercise(activeDayIndex, item.order, {
+                            isTimeBased: val,
+                            targetDurationSeconds: val ? (item.targetDurationSeconds || 45) : undefined,
+                          });
+                          clearFormError();
+                        }}
+                        trackColor={{ false: '#ddd', true: '#2f95dc' }}
+                        thumbColor="#fff"
+                      />
+                    </View>
+
+                    <View style={styles.fieldsRow}>
+                      <View style={styles.field}>
+                        <Text style={styles.fieldLabel}>Series</Text>
+                        <TextInput
+                          style={styles.fieldInput}
+                          value={String(item.targetSets)}
+                          onChangeText={(text) => {
+                            const val = parseInt(text, 10);
+                            updateExercise(activeDayIndex, item.order, { targetSets: isNaN(val) ? 0 : val });
+                            clearFormError();
+                          }}
+                          keyboardType="numeric"
+                          maxLength={2}
+                        />
+                      </View>
+                      {item.isTimeBased ? (
+                        <View style={styles.field}>
+                          <Text style={styles.fieldLabel}>Duracion (s)</Text>
+                          <TextInput
+                            style={styles.fieldInput}
+                            value={String(item.targetDurationSeconds ?? 0)}
+                            onChangeText={(text) => {
+                              const val = parseInt(text, 10);
+                              updateExercise(activeDayIndex, item.order, { targetDurationSeconds: isNaN(val) ? 0 : val });
+                              clearFormError();
+                            }}
+                            keyboardType="numeric"
+                            maxLength={4}
+                          />
+                        </View>
+                      ) : (
+                        <View style={styles.field}>
+                          <Text style={styles.fieldLabel}>Reps</Text>
+                          <TextInput
+                            style={styles.fieldInput}
+                            value={String(item.targetReps)}
+                            onChangeText={(text) => {
+                              const val = parseInt(text, 10);
+                              updateExercise(activeDayIndex, item.order, { targetReps: isNaN(val) ? 0 : val });
+                              clearFormError();
+                            }}
+                            keyboardType="numeric"
+                            maxLength={3}
+                          />
+                        </View>
+                      )}
+                      <View style={styles.field}>
+                        <Text style={styles.fieldLabel}>Descanso (s)</Text>
+                        <TextInput
+                          style={styles.fieldInput}
+                          value={String(item.restSeconds)}
+                          onChangeText={(text) => {
+                            const val = parseInt(text, 10);
+                            updateExercise(activeDayIndex, item.order, { restSeconds: isNaN(val) ? 0 : val });
+                            clearFormError();
+                          }}
+                          keyboardType="numeric"
+                          maxLength={4}
+                        />
+                      </View>
+                    </View>
+
+                    <TextInput
+                      style={[styles.input, styles.notesInput]}
+                      value={item.notes ?? ''}
+                      onChangeText={(text) => updateExercise(activeDayIndex, item.order, { notes: text || undefined })}
+                      placeholder="Notas (opcional)"
+                      maxLength={200}
+                    />
+                  </TouchableOpacity>
+                </ScaleDecorator>
               )}
+            />
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>
+                Este dia no tiene ejercicios.{'\n'}
+                Toca "+ Agregar ejercicios" para empezar.
+              </Text>
             </View>
-          ))}
+          )}
+        </View>
 
-          <TouchableOpacity style={styles.addDayButton} onPress={addDay} activeOpacity={0.8}>
-            <Text style={styles.addDayButtonText}>+ Agregar dia</Text>
-          </TouchableOpacity>
-
-          {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
-        </ScrollView>
+        {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
+        {routineError ? <Text style={styles.errorText}>{routineError}</Text> : null}
 
         <View style={styles.footer}>
           <TouchableOpacity
@@ -487,9 +586,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#888',
   },
-  scrollContent: {
+  header: {
     padding: 16,
-    paddingBottom: 24,
+    paddingBottom: 8,
   },
   label: {
     fontSize: 14,
@@ -511,102 +610,165 @@ const styles = StyleSheet.create({
   textArea: {
     height: 80,
     paddingTop: 10,
+    marginBottom: 0,
   },
   notesInput: {
     marginBottom: 8,
     marginTop: 4,
   },
-  daySection: {
+  dayTabsContainer: {
     backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  dayHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
-    paddingBottom: 10,
+    paddingVertical: 8,
   },
-  dayNameInput: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1a1a1a',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    backgroundColor: '#fafafa',
-    borderRadius: 8,
+  dayTabsContent: {
+    paddingHorizontal: 12,
+    gap: 8,
+  },
+  dayTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#eee',
-    marginRight: 10,
+    borderColor: '#e0e0e0',
+    minHeight: 36,
   },
-  removeDayText: {
+  dayTabActive: {
+    backgroundColor: '#2f95dc',
+    borderColor: '#2f95dc',
+  },
+  dayTabText: {
     fontSize: 13,
-    color: '#d32f2f',
-    fontWeight: '500',
+    fontWeight: '600',
+    color: '#555',
+    marginRight: 4,
   },
-  dayExercisesHeader: {
+  dayTabTextActive: {
+    color: '#fff',
+  },
+  dayTabRemove: {
+    marginLeft: 4,
+    padding: 2,
+  },
+  dayTabRemoveText: {
+    fontSize: 16,
+    color: '#999',
+    fontWeight: '600',
+  },
+  dayTabAdd: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#e3f2fd',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#2f95dc',
+    borderStyle: 'dashed',
+    minHeight: 36,
+    justifyContent: 'center',
+  },
+  dayTabAddText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2f95dc',
+  },
+  dayContent: {
+    flex: 1,
+    padding: 16,
+  },
+  dayContentHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
-  dayExercisesTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#555',
+  dayContentTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    flex: 1,
   },
   addButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     backgroundColor: '#e3f2fd',
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#2f95dc',
   },
   addButtonText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
     color: '#2f95dc',
   },
   exerciseCard: {
-    backgroundColor: '#fafafa',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 8,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#eee',
+    borderColor: '#e8e8e8',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  exerciseCardActive: {
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   exerciseHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
+  },
+  dragHandle: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginRight: 8,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 6,
+  },
+  dragHandleText: {
+    fontSize: 16,
+    color: '#999',
+    fontWeight: '700',
   },
   exerciseName: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
     color: '#1a1a1a',
     flex: 1,
   },
   removeText: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#d32f2f',
     fontWeight: '500',
   },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+    paddingVertical: 6,
+  },
+  toggleLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#555',
+  },
   fieldsRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 6,
+    gap: 10,
+    marginBottom: 8,
   },
   field: {
     flex: 1,
@@ -615,46 +777,38 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '500',
     color: '#888',
-    marginBottom: 3,
+    marginBottom: 4,
     textAlign: 'center',
   },
   fieldInput: {
-    backgroundColor: '#fff',
+    backgroundColor: '#fafafa',
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 6,
-    fontSize: 13,
+    fontSize: 14,
     textAlign: 'center',
     color: '#1a1a1a',
   },
-  noExercisesText: {
-    fontSize: 13,
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  emptyStateText: {
+    fontSize: 14,
     color: '#888',
     textAlign: 'center',
-    marginVertical: 10,
-  },
-  addDayButton: {
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#2f95dc',
-    borderStyle: 'dashed',
-    marginBottom: 16,
-  },
-  addDayButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2f95dc',
+    lineHeight: 22,
   },
   errorText: {
     fontSize: 14,
     color: '#d32f2f',
     textAlign: 'center',
     marginVertical: 8,
+    paddingHorizontal: 16,
   },
   footer: {
     flexDirection: 'row',

@@ -27,11 +27,19 @@ interface FirestoreWorkoutSessionData {
   completedAt?: Timestamp;
   isCompleted: boolean;
   totalVolume: number;
+  totalDurationSeconds?: number;
   notes?: string;
 }
 
 function sessionsPath(uid: string): string {
   return `users/${uid}/workoutSessions`;
+}
+
+function defaultWorkoutSet(set: WorkoutSession['exercises'][number]['sets'][number]): WorkoutSession['exercises'][number]['sets'][number] {
+  return {
+    ...set,
+    durationSeconds: set.durationSeconds ?? 0,
+  };
 }
 
 function toWorkoutSession(id: string, data: FirestoreWorkoutSessionData): WorkoutSession {
@@ -41,11 +49,15 @@ function toWorkoutSession(id: string, data: FirestoreWorkoutSessionData): Workou
     routineName: data.routineName,
     dayId: data.dayId,
     dayName: data.dayName,
-    exercises: data.exercises,
+    exercises: data.exercises.map((ex) => ({
+      ...ex,
+      sets: ex.sets.map(defaultWorkoutSet),
+    })),
     startedAt: data.startedAt.toDate(),
     completedAt: data.completedAt?.toDate(),
     isCompleted: data.isCompleted,
     totalVolume: data.totalVolume,
+    totalDurationSeconds: data.totalDurationSeconds,
     notes: data.notes,
   };
 }
@@ -109,6 +121,7 @@ export class FirestoreWorkoutSessionRepository implements IWorkoutSessionReposit
     if (data.isCompleted !== undefined) updateData.isCompleted = data.isCompleted;
     if (data.totalVolume !== undefined) updateData.totalVolume = data.totalVolume;
     if (data.completedAt !== undefined) updateData.completedAt = data.completedAt;
+    if (data.totalDurationSeconds !== undefined) updateData.totalDurationSeconds = data.totalDurationSeconds;
     if (data.notes !== undefined) updateData.notes = data.notes;
     await updateDoc(docRef, updateData);
     const updated = await this.getById(uid, sessionId);
