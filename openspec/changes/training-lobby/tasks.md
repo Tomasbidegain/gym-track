@@ -34,16 +34,16 @@ Chain strategy: pending
 
 ## Phase 2: Navigation
 
-- [ ] 2.1 Update `src/presentation/navigation/types.ts`: add `TrainStackParamList`, remove `WorkoutSession` from `RoutineStackParamList`
-- [ ] 2.2 Create `src/presentation/navigation/TrainStack.tsx`
-- [ ] 2.3 Add `Train` tab to `src/presentation/navigation/MainAppTabs.tsx`
-- [ ] 2.4 Remove `WorkoutSession` route from `src/presentation/navigation/RoutineStack.tsx`
-- [ ] 2.5 Remove start-workout button from `src/presentation/screens/routines/RoutineDetailScreen.tsx`
+- [x] 2.1 Update `src/presentation/navigation/types.ts`: add `TrainStackParamList`, remove `WorkoutSession` from `RoutineStackParamList`
+- [x] 2.2 Create `src/presentation/navigation/TrainStack.tsx`
+- [x] 2.3 Add `Train` tab to `src/presentation/navigation/MainAppTabs.tsx`
+- [x] 2.4 Remove `WorkoutSession` route from `src/presentation/navigation/RoutineStack.tsx`
+- [x] 2.5 Remove start-workout button from `src/presentation/screens/routines/RoutineDetailScreen.tsx`
 
 ## Phase 3: Screens & Hook
 
 - [ ] 3.1 Create `src/presentation/hooks/useCompletedDaysInWeek.ts`
-- [ ] 3.2 Create `src/presentation/screens/train/TrainLobbyScreen.tsx` (routine cards, auto-skip when 1 routine)
+- [x] 3.2 Create `src/presentation/screens/train/TrainLobbyScreen.tsx` (routine cards, auto-skip when 1 routine)
 - [ ] 3.3 Create `src/presentation/screens/train/DaySelectionScreen.tsx` (checkmarks, block completed days)
 - [ ] 3.4 Update `src/presentation/screens/workout/WorkoutSessionScreen.tsx` (Train props, `beforeRemove` prompt, day checkmarks)
 - [ ] 3.5 Add `markSessionComplete` to `src/presentation/context/WorkoutSessionContext.tsx`
