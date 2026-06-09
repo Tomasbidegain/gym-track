@@ -11,6 +11,7 @@ import {
   orderBy,
   type Firestore,
   type Timestamp,
+  type FieldValue,
 } from 'firebase/firestore';
 import type { Routine, RoutineDay, RoutineExercise } from '../../../domain/entities/Routine';
 import type { IRoutineRepository } from '../../../domain/repositories/IRoutineRepository';
@@ -127,13 +128,13 @@ export class FirestoreRoutineRepository implements IRoutineRepository {
     try {
       const colRef = collection(this.firestore, routinesPath(uid));
       const now = serverTimestamp();
-      const docData = cleanUndefinedValues({
+      const docData = {
         name: routine.name,
         description: routine.description,
-        days: routine.days,
+        days: cleanUndefinedValues(routine.days),
         createdAt: now,
         updatedAt: now,
-      });
+      };
       const docRef = await addDoc(colRef, docData);
       return {
         id: docRef.id,
@@ -156,13 +157,12 @@ export class FirestoreRoutineRepository implements IRoutineRepository {
     try {
       const docRef = doc(this.firestore, routinesPath(uid), routineId);
       const updateData: Record<string, unknown> = {
-        ...data,
         updatedAt: serverTimestamp(),
       };
-      delete updateData.id;
-      delete updateData.createdAt;
-      const cleanedData = cleanUndefinedValues(updateData);
-      await updateDoc(docRef, cleanedData as any);
+      if (data.name !== undefined) updateData.name = data.name.trim();
+      if (data.description !== undefined) updateData.description = data.description.trim();
+      if (data.days !== undefined) updateData.days = cleanUndefinedValues(data.days);
+      await updateDoc(docRef, updateData as any);
       const updated = await this.getById(uid, routineId);
       if (!updated) {
         throw new Error('Routine not found after update');
