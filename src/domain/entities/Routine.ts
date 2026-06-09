@@ -10,6 +10,8 @@ export interface RoutineExercise {
   targetReps: number;
   restSeconds: number;
   notes?: string;
+  isTimeBased?: boolean;
+  targetDurationSeconds?: number;
 }
 
 export interface RoutineDay {
@@ -80,9 +82,16 @@ export function validateRoutineInput(
             errors[`days[${dayIndex}].exercises[${exIndex}].targetSets`] =
               'Target sets must be greater than 0';
           }
-          if (ex.targetReps <= 0) {
-            errors[`days[${dayIndex}].exercises[${exIndex}].targetReps`] =
-              'Target reps must be greater than 0';
+          if (ex.isTimeBased) {
+            if (!ex.targetDurationSeconds || ex.targetDurationSeconds <= 0) {
+              errors[`days[${dayIndex}].exercises[${exIndex}].targetDurationSeconds`] =
+                'Target duration must be greater than 0 for time-based exercises';
+            }
+          } else {
+            if (ex.targetReps <= 0) {
+              errors[`days[${dayIndex}].exercises[${exIndex}].targetReps`] =
+                'Target reps must be greater than 0';
+            }
           }
           if (ex.restSeconds < 0) {
             errors[`days[${dayIndex}].exercises[${exIndex}].restSeconds`] =

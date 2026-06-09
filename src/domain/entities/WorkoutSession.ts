@@ -5,6 +5,7 @@ export interface WorkoutSet {
   reps: number;
   weight: number;
   completed: boolean;
+  durationSeconds?: number;
 }
 
 export interface WorkoutExercise {
@@ -28,6 +29,7 @@ export interface WorkoutSession {
   completedAt?: Date;
   isCompleted: boolean;
   totalVolume: number;
+  totalDurationSeconds?: number;
   notes?: string;
 }
 
@@ -46,6 +48,7 @@ export interface UpdateWorkoutSetInput {
   reps: number;
   weight: number;
   completed: boolean;
+  durationSeconds?: number;
 }
 
 export function createWorkoutSession(
@@ -64,6 +67,9 @@ export function createWorkoutSession(
 export function calculateTotalVolume(exercises: WorkoutExercise[]): number {
   return exercises.reduce((total, exercise) => {
     return total + exercise.sets.reduce((exerciseTotal, set) => {
+      if (set.durationSeconds && set.durationSeconds > 0) {
+        return exerciseTotal;
+      }
       return exerciseTotal + (set.weight * set.reps);
     }, 0);
   }, 0);
@@ -75,17 +81,21 @@ export function updateWorkoutSet(
 ): WorkoutSession {
   const exercises = session.exercises.map((ex, idx) => {
     if (idx !== input.exerciseIndex) return ex;
-    
+
     const sets = ex.sets.map((set, sIdx) => {
       if (sIdx !== input.setIndex) return set;
-      return {
+      const updated: WorkoutSet = {
         ...set,
         reps: input.reps,
         weight: input.weight,
         completed: input.completed,
       };
+      if (input.durationSeconds !== undefined) {
+        updated.durationSeconds = input.durationSeconds;
+      }
+      return updated;
     });
-    
+
     return { ...ex, sets };
   });
 
@@ -97,10 +107,16 @@ export function updateWorkoutSet(
 }
 
 export function completeWorkoutSession(session: WorkoutSession): WorkoutSession {
+  const completedAt = new Date();
+  const totalDurationSeconds = session.startedAt
+    ? Math.round((completedAt.getTime() - session.startedAt.getTime()) / 1000)
+    : 0;
+
   return {
     ...session,
-    completedAt: new Date(),
+    completedAt,
     isCompleted: true,
+    totalDurationSeconds,
   };
 }
 
@@ -109,9 +125,10 @@ export function generateSetsFromRoutine(
 ): WorkoutSet[] {
   return Array.from({ length: routineExercise.targetSets }, (_, i) => ({
     setNumber: i + 1,
-    reps: routineExercise.targetReps,
+    reps: routineExercise.isTimeBased ? 0 : routineExercise.targetReps,
     weight: 0,
     completed: false,
+    durationSeconds: 0,
   }));
 }
 
