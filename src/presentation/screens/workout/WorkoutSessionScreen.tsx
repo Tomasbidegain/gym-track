@@ -20,7 +20,14 @@ import { useRoutines } from '../../hooks/useRoutines';
 import { useWorkoutSessionContext } from '../../context/WorkoutSessionContext';
 import { useCompletedDaysInWeek } from '../../hooks/useCompletedDaysInWeek';
 import { generateSetsFromRoutine } from '../../../domain';
-import type { RoutineDay } from '../../../domain';
+import type { RoutineDay, RoutineExercise, WorkoutExercise, WorkoutSet } from '../../../domain';
+
+// Extended exercise type that includes both routine metadata and workout set data
+type SessionExercise = WorkoutExercise & {
+  restSeconds: number;
+  isTimeBased?: boolean;
+  targetDurationSeconds?: number;
+};
 
 export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'WorkoutSession'>) {
   const { routineId, dayId } = route.params;
@@ -38,17 +45,64 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
   const routine = routines.find((r) => r.id === routineId);
   const day = routine?.days.find((d) => d.id === dayId);
 
+  const isDayCompleted = completedDayIds.has(dayId);
+
+  // Find the completed session for this day (most recent completed this week)
+  const completedSession = React.useMemo(() => {
+    if (!isDayCompleted) return null;
+    return sessions.find(
+      (s) => s.dayId === dayId && s.routineId === routineId && s.isCompleted
+    ) || null;
+  }, [isDayCompleted, sessions, dayId, routineId]);
+
   const [sessionId, setSessionId] = useState<string | null>(null);
   const activeSession = sessionId ? sessions.find((s) => s.id === sessionId) : null;
   const sessionCompletedRef = React.useRef(false);
-  const [exercises, setExercises] = useState(() => {
+
+  const [exercises, setExercises] = useState<SessionExercise[]>(() => {
     if (!day) return [];
+    if (completedSession) {
+      // Merge session data with routine metadata for completed days
+      return day.exercises.map((routineEx) => {
+        const sessionEx = completedSession.exercises.find(
+          (se) => se.exerciseId === routineEx.exerciseId
+        );
+        return {
+          ...routineEx,
+          sets: sessionEx ? sessionEx.sets : generateSetsFromRoutine(routineEx),
+        };
+      });
+    }
     return day.exercises.map((ex) => ({
       ...ex,
       sets: generateSetsFromRoutine(ex),
     }));
   });
   const [isSaving, setIsSaving] = useState(false);
+
+  // When switching to a completed day, merge session set data with routine metadata
+  useEffect(() => {
+    if (isDayCompleted && completedSession && day) {
+      const mergedExercises = day.exercises.map((routineEx) => {
+        const sessionEx = completedSession.exercises.find(
+          (se) => se.exerciseId === routineEx.exerciseId
+        );
+        return {
+          ...routineEx,
+          sets: sessionEx ? sessionEx.sets : generateSetsFromRoutine(routineEx),
+        };
+      });
+      setExercises(mergedExercises);
+      setSessionId(null);
+    } else if (!isDayCompleted && !sessionId && day) {
+      setExercises(
+        day.exercises.map((ex) => ({
+          ...ex,
+          sets: generateSetsFromRoutine(ex),
+        }))
+      );
+    }
+  }, [isDayCompleted, completedSession, day, sessionId]);
 
   // Timer states
   const [timerActive, setTimerActive] = useState(false);
@@ -237,15 +291,7 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
       set.completed = !set.completed;
       setExercises(newExercises);
 
-      await updateSet(sessionId, {
-        exerciseIndex,
-        setIndex,
-        reps: set.reps,
-        weight: set.weight,
-        completed: set.completed,
-      });
-
-      // Start timer when set is completed (not when uncompleted)
+      // Start timer immediately when set is completed (not when uncompleted)
       if (!wasCompleted && set.completed && routine) {
         const exercise = newExercises[exerciseIndex];
         const restSeconds = exercise.restSeconds || 90;
@@ -259,6 +305,14 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
         setTimerActive(true);
         setTimerRunning(true);
       }
+
+      await updateSet(sessionId, {
+        exerciseIndex,
+        setIndex,
+        reps: set.reps,
+        weight: set.weight,
+        completed: set.completed,
+      });
     },
     [sessionId, exercises, updateSet, routine, timerActive, timerRunning],
   );
@@ -301,16 +355,7 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
       set.durationSeconds = durationSeconds;
       setExercises(newExercises);
 
-      await updateSet(sessionId, {
-        exerciseIndex,
-        setIndex,
-        reps: set.reps,
-        weight: set.weight,
-        completed: true,
-        durationSeconds,
-      });
-
-      // Start rest timer
+      // Start rest timer immediately
       if (routine) {
         const exercise = newExercises[exerciseIndex];
         const restSeconds = exercise.restSeconds || 90;
@@ -324,6 +369,15 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
         setTimerActive(true);
         setTimerRunning(true);
       }
+
+      await updateSet(sessionId, {
+        exerciseIndex,
+        setIndex,
+        reps: set.reps,
+        weight: set.weight,
+        completed: true,
+        durationSeconds,
+      });
     },
     [sessionId, exercises, updateSet, routine],
   );
@@ -413,6 +467,21 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
         )}
       </View>
 
+      {isDayCompleted && completedSession && (
+        <View style={styles.completedBanner}>
+          <Text style={styles.completedBannerText}>
+            Día completado
+          </Text>
+          <Text style={styles.completedBannerSubtext}>
+            Duración: {(() => {
+              const mins = Math.floor((completedSession.totalDurationSeconds || 0) / 60);
+              const secs = (completedSession.totalDurationSeconds || 0) % 60;
+              return `${mins} min ${secs} seg`;
+            })()}
+          </Text>
+        </View>
+      )}
+
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -432,10 +501,6 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
               ]}
               onPress={() => {
                 if (d.id === dayId) return;
-                if (isDayCompleted) {
-                  Alert.alert('Dia completado', 'Este dia ya fue completado esta semana.');
-                  return;
-                }
                 navigation.replace('WorkoutSession', { routineId, dayId: d.id });
               }}
               activeOpacity={0.8}
@@ -481,18 +546,22 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
                           }}
                           keyboardType="numeric"
                           placeholder="0"
-                          editable={!!sessionId}
+                          editable={!!sessionId && !isDayCompleted}
                         />
                       </View>
 
-                      {sessionId ? (
+                      {sessionId && !isDayCompleted ? (
                         <ExerciseTimer
                           onComplete={(duration) => handleTimerComplete(exIndex, setIndex, duration)}
                           targetDuration={exercise.targetDurationSeconds}
                         />
                       ) : (
                         <View style={styles.timerPlaceholder}>
-                          <Text style={styles.timerPlaceholderText}>--:--</Text>
+                          <Text style={styles.timerPlaceholderText}>
+                            {set.durationSeconds
+                              ? `${Math.floor(set.durationSeconds / 60).toString().padStart(2, '0')}:${(set.durationSeconds % 60).toString().padStart(2, '0')}`
+                              : '--:--'}
+                          </Text>
                         </View>
                       )}
                     </>
@@ -509,7 +578,7 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
                           }}
                           keyboardType="numeric"
                           placeholder="0"
-                          editable={!!sessionId}
+                          editable={!!sessionId && !isDayCompleted}
                         />
                       </View>
 
@@ -524,11 +593,11 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
                           }}
                           keyboardType="numeric"
                           placeholder="0"
-                          editable={!!sessionId}
+                          editable={!!sessionId && !isDayCompleted}
                         />
                       </View>
 
-                      {sessionId && (
+                      {sessionId && !isDayCompleted && (
                         <TouchableOpacity
                           style={[
                             styles.checkButton,
@@ -553,31 +622,33 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
         ))}
       </ScrollView>
 
-      <View style={styles.footer}>
-        {!sessionId ? (
-          <TouchableOpacity
-            style={[styles.startButton, isSaving && styles.buttonDisabled]}
-            onPress={handleStartSession}
-            disabled={isSaving}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.startButtonText}>
-              {isSaving ? 'Iniciando...' : 'Iniciar entrenamiento'}
-            </Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            style={[styles.completeButton, isSaving && styles.buttonDisabled]}
-            onPress={handleCompleteSession}
-            disabled={isSaving}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.completeButtonText}>
-              {isSaving ? 'Finalizando...' : 'Finalizar entrenamiento'}
-            </Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      {!isDayCompleted && (
+        <View style={styles.footer}>
+          {!sessionId ? (
+            <TouchableOpacity
+              style={[styles.startButton, isSaving && styles.buttonDisabled]}
+              onPress={handleStartSession}
+              disabled={isSaving}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.startButtonText}>
+                {isSaving ? 'Iniciando...' : 'Iniciar entrenamiento'}
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[styles.completeButton, isSaving && styles.buttonDisabled]}
+              onPress={handleCompleteSession}
+              disabled={isSaving}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.completeButtonText}>
+                {isSaving ? 'Finalizando...' : 'Finalizar entrenamiento'}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
 
       <RestTimer
         isActive={timerActive}
@@ -799,6 +870,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#fff',
+  },
+  completedBanner: {
+    backgroundColor: '#4caf50',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  completedBannerText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  completedBannerSubtext: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#e8f5e9',
+    marginTop: 2,
   },
   errorText: {
     fontSize: 16,

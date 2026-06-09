@@ -5,7 +5,6 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Alert,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { TrainScreenProps } from '../../navigation/types';
@@ -40,14 +39,7 @@ export function DaySelectionScreen({
     );
   }
 
-  const handleDayPress = (dayId: string, dayName: string) => {
-    if (completedDayIds.has(dayId)) {
-      Alert.alert(
-        'Dia completado',
-        `El dia "${dayName}" ya fue completado esta semana. Elegi otro dia.`,
-      );
-      return;
-    }
+  const handleDayPress = (dayId: string) => {
     navigation.navigate('WorkoutSession', { routineId, dayId });
   };
 
@@ -62,9 +54,8 @@ export function DaySelectionScreen({
           <TouchableOpacity
             key={day.id}
             style={[styles.dayCard, isCompleted && styles.dayCardCompleted]}
-            onPress={() => handleDayPress(day.id, day.name)}
-            activeOpacity={isCompleted ? 1 : 0.8}
-            disabled={isCompleted}
+            onPress={() => handleDayPress(day.id)}
+            activeOpacity={0.8}
           >
             <View style={styles.dayCardRow}>
               <Text style={[styles.dayName, isCompleted && styles.dayNameCompleted]}>

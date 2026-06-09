@@ -5,7 +5,11 @@ import {
   TouchableOpacity,
   StyleSheet,
   Animated,
+  Modal,
+  Dimensions,
 } from 'react-native';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface RestTimerProps {
   isActive: boolean;
@@ -36,10 +40,11 @@ export function RestTimer({
 }: RestTimerProps) {
   const progressAnim = useRef(new Animated.Value(1)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   const progress = totalSeconds > 0 ? seconds / totalSeconds : 0;
-  
+
   const getColor = () => {
     const percentage = totalSeconds > 0 ? (seconds / totalSeconds) * 100 : 0;
     if (percentage > 60) return '#4caf50';
@@ -81,19 +86,33 @@ export function RestTimer({
 
   useEffect(() => {
     if (isActive) {
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 350,
+          useNativeDriver: true,
+        }),
+      ]).start();
     } else {
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: SCREEN_HEIGHT,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
     }
-  }, [isActive, fadeAnim]);
+  }, [isActive, fadeAnim, slideAnim]);
 
   const formatTime = (totalSeconds: number) => {
     const mins = Math.floor(totalSeconds / 60);
@@ -101,152 +120,180 @@ export function RestTimer({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  if (!isActive) return null;
-
   return (
-    <Animated.View style={[styles.container, { opacity: fadeAnim, transform: [{ scale: pulseAnim }] }]}>
-      <View style={[styles.progressBarContainer, { backgroundColor: `${color}20` }]}>
+    <Modal
+      visible={isActive}
+      transparent
+      animationType="none"
+      statusBarTranslucent
+    >
+      <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
+        <TouchableOpacity
+          style={styles.backdrop}
+          activeOpacity={1}
+          onPress={onCancel}
+        />
+
         <Animated.View
           style={[
-            styles.progressBar,
-            {
-              width: progressAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: ['0%', '100%'],
-              }),
-              backgroundColor: color,
-            },
+            styles.cardContainer,
+            { transform: [{ translateY: slideAnim }] },
           ]}
-        />
-      </View>
-
-      <View style={styles.content}>
-        <Text style={[styles.restLabel, { color }]}>DESCANSO</Text>
-        
-        <View style={styles.header}>
-          <Text style={styles.title} numberOfLines={1}>
-            {exerciseName}
-          </Text>
-          <Text style={styles.subtitle}>
-            Set {setNumber} completado
-            {nextSetNumber ? ` • Próximo: Set ${nextSetNumber}` : ''}
-          </Text>
-        </View>
-
-        <View style={styles.timerContainer}>
-          <Text style={[styles.timerText, { color }]}>
-            {formatTime(seconds)}
-          </Text>
-        </View>
-
-        <View style={styles.controls}>
-          <TouchableOpacity
-            style={[styles.controlButton, { backgroundColor: `${color}15`, borderColor: color }]}
-            onPress={isRunning ? onPause : onResume}
-            activeOpacity={0.7}
-          >
-            <View style={styles.iconContainer}>
-              {isRunning ? (
-                <View style={styles.pauseIcon}>
-                  <View style={[styles.pauseBar, { backgroundColor: color }]} />
-                  <View style={[styles.pauseBar, { backgroundColor: color }]} />
-                </View>
-              ) : (
-                <View style={[styles.playIcon, { borderLeftColor: color }]} />
-              )}
+        >
+          <View style={styles.card}>
+            <View style={[styles.progressBarContainer, { backgroundColor: `${color}20` }]}>
+              <Animated.View
+                style={[
+                  styles.progressBar,
+                  {
+                    width: progressAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: ['0%', '100%'],
+                    }),
+                    backgroundColor: color,
+                  },
+                ]}
+              />
             </View>
-            <Text style={[styles.controlButtonText, { color }]}>
-              {isRunning ? 'Pausar' : 'Reanudar'}
-            </Text>
-          </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={onCancel}
-            activeOpacity={0.7}
-          >
-            <View style={styles.iconContainer}>
-              <View style={styles.cancelIcon}>
-                <View style={[styles.cancelLine1, { backgroundColor: '#d32f2f' }]} />
-                <View style={[styles.cancelLine2, { backgroundColor: '#d32f2f' }]} />
+            <Animated.View
+              style={[styles.content, { transform: [{ scale: pulseAnim }] }]}
+            >
+              <Text style={[styles.restLabel, { color }]}>DESCANSO</Text>
+
+              <View style={styles.header}>
+                <Text style={styles.title} numberOfLines={2}>
+                  {exerciseName}
+                </Text>
+                <Text style={styles.subtitle}>
+                  Set {setNumber} completado
+                  {nextSetNumber ? ` \u2022 Próximo: Set ${nextSetNumber}` : ''}
+                </Text>
               </View>
-            </View>
-            <Text style={styles.cancelButtonText}>Cancelar</Text>
-          </TouchableOpacity>
-        </View>
 
-        <View style={styles.quickAdd}>
-          <TouchableOpacity
-            style={[styles.quickAddButton, { borderColor: color }]}
-            onPress={() => onAddTime(15)}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.quickAddText, { color }]}>+15s</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.quickAddButton, { borderColor: color }]}
-            onPress={() => onAddTime(30)}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.quickAddText, { color }]}>+30s</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.quickAddButton, { borderColor: color }]}
-            onPress={() => onAddTime(60)}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.quickAddText, { color }]}>+1min</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Animated.View>
+              <View style={styles.timerContainer}>
+                <Text style={[styles.timerText, { color }]}>
+                  {formatTime(seconds)}
+                </Text>
+              </View>
+
+              <View style={styles.controls}>
+                <TouchableOpacity
+                  style={[styles.controlButton, { backgroundColor: `${color}15`, borderColor: color }]}
+                  onPress={isRunning ? onPause : onResume}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.iconContainer}>
+                    {isRunning ? (
+                      <View style={styles.pauseIcon}>
+                        <View style={[styles.pauseBar, { backgroundColor: color }]} />
+                        <View style={[styles.pauseBar, { backgroundColor: color }]} />
+                      </View>
+                    ) : (
+                      <View style={[styles.playIcon, { borderLeftColor: color }]} />
+                    )}
+                  </View>
+                  <Text style={[styles.controlButtonText, { color }]}>
+                    {isRunning ? 'Pausar' : 'Reanudar'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={onCancel}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.iconContainer}>
+                    <View style={styles.cancelIcon}>
+                      <View style={[styles.cancelLine1, { backgroundColor: '#d32f2f' }]} />
+                      <View style={[styles.cancelLine2, { backgroundColor: '#d32f2f' }]} />
+                    </View>
+                  </View>
+                  <Text style={styles.cancelButtonText}>Cancelar</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.quickAdd}>
+                <TouchableOpacity
+                  style={[styles.quickAddButton, { borderColor: color }]}
+                  onPress={() => onAddTime(15)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.quickAddText, { color }]}>+15s</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.quickAddButton, { borderColor: color }]}
+                  onPress={() => onAddTime(30)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.quickAddText, { color }]}>+30s</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.quickAddButton, { borderColor: color }]}
+                  onPress={() => onAddTime(60)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.quickAddText, { color }]}>+1min</Text>
+                </TouchableOpacity>
+              </View>
+            </Animated.View>
+          </View>
+        </Animated.View>
+      </Animated.View>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    bottom: 80,
-    left: 16,
-    right: 16,
+  overlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  cardContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 32,
+  },
+  card: {
     backgroundColor: '#fff',
-    borderRadius: 20,
+    borderRadius: 24,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 10,
-    zIndex: 1000,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 15,
     overflow: 'hidden',
   },
   progressBarContainer: {
-    height: 8,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    height: 10,
   },
   progressBar: {
     height: '100%',
-    borderTopLeftRadius: 20,
   },
   content: {
-    padding: 20,
-    paddingTop: 16,
+    padding: 28,
+    paddingTop: 24,
+    alignItems: 'center',
   },
   restLabel: {
     fontSize: 14,
     fontWeight: '800',
-    letterSpacing: 2,
-    marginBottom: 8,
+    letterSpacing: 2.5,
+    marginBottom: 12,
     textAlign: 'center',
   },
   header: {
-    marginBottom: 12,
+    marginBottom: 20,
+    alignItems: 'center',
   },
   title: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
     color: '#1a1a1a',
-    marginBottom: 4,
+    marginBottom: 6,
     textAlign: 'center',
   },
   subtitle: {
@@ -256,25 +303,26 @@ const styles = StyleSheet.create({
   },
   timerContainer: {
     alignItems: 'center',
-    marginVertical: 16,
+    marginVertical: 24,
   },
   timerText: {
-    fontSize: 56,
-    fontWeight: '700',
+    fontSize: 80,
+    fontWeight: '200',
     fontVariant: ['tabular-nums'],
   },
   controls: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 16,
+    marginBottom: 20,
+    width: '100%',
   },
   controlButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 12,
+    paddingVertical: 14,
+    borderRadius: 14,
     borderWidth: 2,
     gap: 8,
   },
@@ -311,8 +359,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 12,
+    paddingVertical: 14,
+    borderRadius: 14,
     backgroundColor: '#ffebee',
     borderWidth: 2,
     borderColor: '#ffcdd2',
@@ -349,11 +397,12 @@ const styles = StyleSheet.create({
   quickAdd: {
     flexDirection: 'row',
     gap: 10,
+    width: '100%',
   },
   quickAddButton: {
     flex: 1,
-    paddingVertical: 10,
-    borderRadius: 10,
+    paddingVertical: 12,
+    borderRadius: 12,
     borderWidth: 2,
     alignItems: 'center',
     backgroundColor: '#fafafa',
