@@ -71,6 +71,24 @@ function routinesPath(uid: string): string {
   return `users/${uid}/routines`;
 }
 
+function cleanUndefinedValues(obj: any): any {
+  if (obj === null || typeof obj !== 'object') {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(cleanUndefinedValues);
+  }
+
+  const cleaned: any = {};
+  for (const key in obj) {
+    if (obj[key] !== undefined) {
+      cleaned[key] = cleanUndefinedValues(obj[key]);
+    }
+  }
+  return cleaned;
+}
+
 export class FirestoreRoutineRepository implements IRoutineRepository {
   private readonly firestore: Firestore;
 
@@ -109,13 +127,14 @@ export class FirestoreRoutineRepository implements IRoutineRepository {
     try {
       const colRef = collection(this.firestore, routinesPath(uid));
       const now = serverTimestamp();
-      const docRef = await addDoc(colRef, {
+      const docData = cleanUndefinedValues({
         name: routine.name,
         description: routine.description,
         days: routine.days,
         createdAt: now,
         updatedAt: now,
       });
+      const docRef = await addDoc(colRef, docData);
       return {
         id: docRef.id,
         name: routine.name,
@@ -142,7 +161,8 @@ export class FirestoreRoutineRepository implements IRoutineRepository {
       };
       delete updateData.id;
       delete updateData.createdAt;
-      await updateDoc(docRef, updateData as any);
+      const cleanedData = cleanUndefinedValues(updateData);
+      await updateDoc(docRef, cleanedData as any);
       const updated = await this.getById(uid, routineId);
       if (!updated) {
         throw new Error('Routine not found after update');
