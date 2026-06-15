@@ -16,6 +16,8 @@ interface ConfirmModalProps {
 }
 
 export function ConfirmModal({ visible, title, message, buttons, onClose }: ConfirmModalProps) {
+  const isColumnLayout = buttons.length > 2;
+  
   return (
     <Modal
       visible={visible}
@@ -27,12 +29,13 @@ export function ConfirmModal({ visible, title, message, buttons, onClose }: Conf
         <View style={styles.content}>
           <Text style={styles.title}>{title}</Text>
           {message && <Text style={styles.message}>{message}</Text>}
-          <View style={styles.buttons}>
+          <View style={[styles.buttons, isColumnLayout && styles.buttonsColumn]}>
             {buttons.map((button, index) => (
               <TouchableOpacity
                 key={index}
                 style={[
                   styles.button,
+                  isColumnLayout && styles.buttonColumn,
                   button.style === 'cancel' && styles.buttonCancel,
                   button.style === 'destructive' && styles.buttonDestructive,
                   button.style === 'default' && styles.buttonDefault,
@@ -90,11 +93,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
   },
+  buttonsColumn: {
+    flexDirection: 'column',
+  },
   button: {
     flex: 1,
     paddingVertical: 14,
     borderRadius: 10,
     alignItems: 'center',
+  },
+  buttonColumn: {
+    flex: 0,
+    marginBottom: 8,
   },
   buttonDefault: {
     backgroundColor: '#4caf50',
