@@ -6,15 +6,16 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert,
   ScrollView,
 } from 'react-native';
 import { useAuth } from '../../hooks/useAuth';
+import { ConfirmModal } from '../../components/ConfirmModal';
 
 export function ProfileScreen() {
   const { user, logout, updateDisplayName, isLoading, clearError } = useAuth();
   const [editingName, setEditingName] = useState(false);
   const [newName, setNewName] = useState(user?.displayName ?? '');
+  const [showSignOutModal, setShowSignOutModal] = useState(false);
 
   const handleSaveName = async () => {
     clearError();
@@ -30,18 +31,12 @@ export function ProfileScreen() {
   };
 
   const handleSignOut = () => {
-    Alert.alert(
-      'Cerrar sesión',
-      '¿Estás seguro de que querés cerrar sesión?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Cerrar sesión',
-          style: 'destructive',
-          onPress: () => logout(),
-        },
-      ],
-    );
+    setShowSignOutModal(true);
+  };
+
+  const handleConfirmSignOut = () => {
+    setShowSignOutModal(false);
+    logout();
   };
 
   const memberSince = user?.createdAt
@@ -123,6 +118,17 @@ export function ProfileScreen() {
       >
         <Text style={styles.signOutButtonText}>Cerrar sesión</Text>
       </TouchableOpacity>
+
+      <ConfirmModal
+        visible={showSignOutModal}
+        title="Cerrar sesión"
+        message="¿Estás seguro de que querés cerrar sesión?"
+        buttons={[
+          { text: 'Cancelar', onPress: () => setShowSignOutModal(false), style: 'cancel' },
+          { text: 'Cerrar sesión', onPress: handleConfirmSignOut, style: 'destructive' },
+        ]}
+        onClose={() => setShowSignOutModal(false)}
+      />
     </ScrollView>
   );
 }

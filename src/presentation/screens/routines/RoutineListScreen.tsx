@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -6,10 +6,10 @@ import {
   TouchableOpacity,
   StyleSheet,
   RefreshControl,
-  Alert,
 } from 'react-native';
 import type { RoutineScreenProps } from '../../navigation/types';
 import { useRoutines } from '../../hooks/useRoutines';
+import { ConfirmModal } from '../../components/ConfirmModal';
 import type { Routine } from '../../../domain';
 
 const muscleGroupLabels: Record<string, string> = {
@@ -34,6 +34,10 @@ function getMuscleGroupBadges(routine: Routine): string[] {
 export function RoutineListScreen({ navigation }: RoutineScreenProps<'RoutineList'>) {
   const { routines, isLoading, refresh, deleteRoutine, duplicateRoutine, clearError } =
     useRoutines();
+
+  const [selectedRoutine, setSelectedRoutine] = useState<Routine | null>(null);
+  const [showActionModal, setShowActionModal] = useState(false);
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
 
   const sortedRoutines = React.useMemo(() => {
     return [...routines].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
@@ -73,40 +77,26 @@ export function RoutineListScreen({ navigation }: RoutineScreenProps<'RoutineLis
     [clearError, duplicateRoutine],
   );
 
-  const handleDelete = useCallback(
-    (routine: Routine) => {
-      clearError();
-      Alert.alert(
-        'Eliminar rutina',
-        `Estas seguro de que queres eliminar "${routine.name}"?`,
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          {
-            text: 'Eliminar',
-            style: 'destructive',
-            onPress: () => deleteRoutine(routine.id),
-          },
-        ],
-      );
-    },
-    [clearError, deleteRoutine],
-  );
+  const handleDeleteRequest = useCallback(() => {
+    setShowActionModal(false);
+    setShowDeleteConfirmModal(true);
+  }, []);
+
+  const handleConfirmDelete = useCallback(() => {
+    setShowDeleteConfirmModal(false);
+    if (selectedRoutine) {
+      deleteRoutine(selectedRoutine.id);
+    }
+    setSelectedRoutine(null);
+  }, [selectedRoutine, deleteRoutine]);
 
   const handleLongPress = useCallback(
     (routine: Routine) => {
       clearError();
-      Alert.alert(routine.name, undefined, [
-        { text: 'Editar', onPress: () => handleEdit(routine) },
-        { text: 'Duplicar', onPress: () => handleDuplicate(routine) },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: () => handleDelete(routine),
-        },
-        { text: 'Cancelar', style: 'cancel' },
-      ]);
+      setSelectedRoutine(routine);
+      setShowActionModal(true);
     },
-    [clearError, handleEdit, handleDuplicate, handleDelete],
+    [clearError],
   );
 
   const renderItem = useCallback(
@@ -167,6 +157,29 @@ export function RoutineListScreen({ navigation }: RoutineScreenProps<'RoutineLis
       <TouchableOpacity style={styles.fab} onPress={handleCreate} activeOpacity={0.8}>
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
+
+      <ConfirmModal
+        visible={showActionModal}
+        title={selectedRoutine?.name ?? ''}
+        buttons={[
+          { text: 'Editar', onPress: () => { setShowActionModal(false); if (selectedRoutine) handleEdit(selectedRoutine); }, style: 'default' },
+          { text: 'Duplicar', onPress: () => { setShowActionModal(false); if (selectedRoutine) handleDuplicate(selectedRoutine); }, style: 'default' },
+          { text: 'Eliminar', onPress: handleDeleteRequest, style: 'destructive' },
+          { text: 'Cancelar', onPress: () => { setShowActionModal(false); setSelectedRoutine(null); }, style: 'cancel' },
+        ]}
+        onClose={() => { setShowActionModal(false); setSelectedRoutine(null); }}
+      />
+
+      <ConfirmModal
+        visible={showDeleteConfirmModal}
+        title="Eliminar rutina"
+        message={selectedRoutine ? `Estas seguro de que queres eliminar "${selectedRoutine.name}"?` : ''}
+        buttons={[
+          { text: 'Cancelar', onPress: () => { setShowDeleteConfirmModal(false); setSelectedRoutine(null); }, style: 'cancel' },
+          { text: 'Eliminar', onPress: handleConfirmDelete, style: 'destructive' },
+        ]}
+        onClose={() => { setShowDeleteConfirmModal(false); setSelectedRoutine(null); }}
+      />
     </View>
   );
 }

@@ -1,14 +1,14 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert,
 } from 'react-native';
 import type { ExerciseScreenProps } from '../../navigation/types';
 import { useExercises } from '../../hooks/useExercises';
+import { ConfirmModal } from '../../components/ConfirmModal';
 
 const muscleGroupLabels: Record<string, string> = {
   chest: 'Pecho',
@@ -40,6 +40,7 @@ export function ExerciseDetailScreen({
 }: ExerciseScreenProps<'ExerciseDetail'>) {
   const { exerciseId } = route.params;
   const { exercises, isLoading, deleteExercise } = useExercises();
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const exercise = useMemo(() => {
     return exercises.find((e) => e.id === exerciseId) ?? null;
@@ -52,21 +53,13 @@ export function ExerciseDetailScreen({
 
   const handleDelete = () => {
     if (!exercise) return;
-    Alert.alert(
-      'Eliminar ejercicio',
-      `¿Estás seguro de que querés eliminar "${exercise.name}"?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            await deleteExercise(exerciseId);
-            navigation.goBack();
-          },
-        },
-      ],
-    );
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    setShowDeleteModal(false);
+    await deleteExercise(exerciseId);
+    navigation.goBack();
   };
 
   if (isLoading && !exercise) {
@@ -122,6 +115,17 @@ export function ExerciseDetailScreen({
           </TouchableOpacity>
         </View>
       ) : null}
+
+      <ConfirmModal
+        visible={showDeleteModal}
+        title="Eliminar ejercicio"
+        message={`¿Estás seguro de que querés eliminar "${exercise.name}"?`}
+        buttons={[
+          { text: 'Cancelar', onPress: () => setShowDeleteModal(false), style: 'cancel' },
+          { text: 'Eliminar', onPress: handleConfirmDelete, style: 'destructive' },
+        ]}
+        onClose={() => setShowDeleteModal(false)}
+      />
     </ScrollView>
   );
 }

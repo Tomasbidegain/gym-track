@@ -5,7 +5,6 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import type { RoutineScreenProps } from '../../navigation/types';
@@ -13,6 +12,7 @@ import { useRoutines } from '../../hooks/useRoutines';
 import { useExercises } from '../../hooks/useExercises';
 import { isOrphaned } from '../../../domain';
 import type { Routine, RoutineExercise } from '../../../domain';
+import { ConfirmModal } from '../../components/ConfirmModal';
 
 const muscleGroupLabels: Record<string, string> = {
   chest: 'Pecho',
@@ -55,6 +55,7 @@ export function RoutineDetailScreen({
   );
 
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const validExerciseIds = useMemo(
     () => catalogExercises.map((e) => e.id),
@@ -80,22 +81,14 @@ export function RoutineDetailScreen({
   const handleDelete = useCallback(() => {
     clearError();
     if (!routine) return;
-    Alert.alert(
-      'Eliminar rutina',
-      `Estas seguro de que queres eliminar "${routine.name}"?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            await deleteRoutine(routineId);
-            navigation.goBack();
-          },
-        },
-      ],
-    );
-  }, [clearError, routine, deleteRoutine, navigation, routineId]);
+    setShowDeleteModal(true);
+  }, [clearError, routine]);
+
+  const handleConfirmDelete = useCallback(async () => {
+    setShowDeleteModal(false);
+    await deleteRoutine(routineId);
+    navigation.goBack();
+  }, [deleteRoutine, navigation, routineId]);
 
   if (!routine) {
     return (
@@ -184,6 +177,17 @@ export function RoutineDetailScreen({
           <Text style={[styles.actionButtonText, styles.deleteButtonText]}>Eliminar</Text>
         </TouchableOpacity>
       </View>
+
+      <ConfirmModal
+        visible={showDeleteModal}
+        title="Eliminar rutina"
+        message={`Estas seguro de que queres eliminar "${routine.name}"?`}
+        buttons={[
+          { text: 'Cancelar', onPress: () => setShowDeleteModal(false), style: 'cancel' },
+          { text: 'Eliminar', onPress: handleConfirmDelete, style: 'destructive' },
+        ]}
+        onClose={() => setShowDeleteModal(false)}
+      />
     </View>
   );
 }

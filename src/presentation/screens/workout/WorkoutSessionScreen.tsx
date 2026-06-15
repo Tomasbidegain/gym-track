@@ -8,13 +8,13 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   BackHandler,
   ActivityIndicator,
   Modal,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { SessionTimer } from '../../components/SessionTimer';
+import { ConfirmModal } from '../../components/ConfirmModal';
 import type { TrainScreenProps } from '../../navigation/types';
 import { useRoutines } from '../../hooks/useRoutines';
 import { useWorkoutSessionContext } from '../../context/WorkoutSessionContext';
@@ -49,6 +49,10 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
   const [isRestRunning, setIsRestRunning] = useState(false);
   const [currentSetInProgress, setCurrentSetInProgress] = useState(false);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [showIncompleteModal, setShowIncompleteModal] = useState(false);
+  const [pendingNavigationAction, setPendingNavigationAction] = useState<any>(null);
   const sessionCompletedRef = useRef(false);
 
   const routine = routines.find((r) => r.id === routineId);
@@ -195,7 +199,8 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
       }
     } catch (error) {
       console.error('Error al iniciar sesion:', error);
-      Alert.alert('Error', 'No se pudo iniciar el entrenamiento');
+      setErrorMessage('No se pudo iniciar el entrenamiento');
+      setShowErrorModal(true);
     }
     setIsSaving(false);
   }, [routine, day, exercises, startSession]);
@@ -356,25 +361,8 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
       if (!session || session.isCompleted) return;
 
       e.preventDefault();
-      Alert.alert(
-        `${day?.name} is incomplete`,
-        'Mark as completed or resume another day?',
-        [
-          {
-            text: 'Resume later',
-            style: 'cancel',
-            onPress: () => navigation.dispatch(e.data.action),
-          },
-          {
-            text: 'Mark complete',
-            onPress: async () => {
-              await markSessionComplete(sessionId);
-              navigation.dispatch(e.data.action);
-            },
-          },
-        ],
-        { cancelable: true },
-      );
+      setPendingNavigationAction(e.data.action);
+      setShowIncompleteModal(true);
     });
 
     return unsubscribe;
@@ -387,25 +375,8 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
       const session = sessions.find((s) => s.id === sessionId);
       if (!session || session.isCompleted) return false;
 
-      Alert.alert(
-        `${day?.name} is incomplete`,
-        'Mark as completed or resume another day?',
-        [
-          {
-            text: 'Resume later',
-            style: 'cancel',
-            onPress: () => navigation.goBack(),
-          },
-          {
-            text: 'Mark complete',
-            onPress: async () => {
-              await markSessionComplete(sessionId);
-              navigation.goBack();
-            },
-          },
-        ],
-        { cancelable: true },
-      );
+      setPendingNavigationAction(null);
+      setShowIncompleteModal(true);
       return true;
     };
 
@@ -459,6 +430,29 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
     setIsSaving(false);
     navigation.goBack();
   }, [sessionId, routine, currentDayId, exercises, completeSession, updateRoutine, routineId, navigation]);
+
+  const handleIncompleteResume = useCallback(() => {
+    setShowIncompleteModal(false);
+    if (pendingNavigationAction) {
+      navigation.dispatch(pendingNavigationAction);
+    } else {
+      navigation.goBack();
+    }
+    setPendingNavigationAction(null);
+  }, [navigation, pendingNavigationAction]);
+
+  const handleIncompleteMarkComplete = useCallback(async () => {
+    setShowIncompleteModal(false);
+    if (sessionId) {
+      await markSessionComplete(sessionId);
+      if (pendingNavigationAction) {
+        navigation.dispatch(pendingNavigationAction);
+      } else {
+        navigation.goBack();
+      }
+    }
+    setPendingNavigationAction(null);
+  }, [sessionId, markSessionComplete, navigation, pendingNavigationAction]);
 
   const handleCancelRest = useCallback(() => {
     setIsRestRunning(false);
@@ -899,37 +893,39 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
       )}
 
       {/* Complete Session Confirmation Modal */}
-      <Modal
+      <ConfirmModal
         visible={showCompleteModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowCompleteModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Finalizar entrenamiento</Text>
-            <Text style={styles.modalMessage}>
-              ¿Estás seguro de que querés finalizar?
-            </Text>
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonCancel]}
-                onPress={() => setShowCompleteModal(false)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.modalButtonTextCancel}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonConfirm]}
-                onPress={confirmCompleteSession}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.modalButtonTextConfirm}>Finalizar</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+        title="Finalizar entrenamiento"
+        message="¿Estás seguro de que querés finalizar?"
+        buttons={[
+          { text: 'Cancelar', onPress: () => setShowCompleteModal(false), style: 'cancel' },
+          { text: 'Finalizar', onPress: confirmCompleteSession, style: 'default' },
+        ]}
+        onClose={() => setShowCompleteModal(false)}
+      />
+
+      {/* Error Modal */}
+      <ConfirmModal
+        visible={showErrorModal}
+        title="Error"
+        message={errorMessage}
+        buttons={[
+          { text: 'OK', onPress: () => setShowErrorModal(false), style: 'default' },
+        ]}
+        onClose={() => setShowErrorModal(false)}
+      />
+
+      {/* Incomplete Session Modal */}
+      <ConfirmModal
+        visible={showIncompleteModal}
+        title={`${day?.name} incompleto`}
+        message="¿Marcar como completado o retomar otro día?"
+        buttons={[
+          { text: 'Retomar otro día', onPress: handleIncompleteResume, style: 'cancel' },
+          { text: 'Marcar completado', onPress: handleIncompleteMarkComplete, style: 'default' },
+        ]}
+        onClose={() => setShowIncompleteModal(false)}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -1322,59 +1318,5 @@ const styles = StyleSheet.create({
     color: '#d32f2f',
     textAlign: 'center',
     marginTop: 40,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
-    width: '80%',
-    maxWidth: 400,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1a1a1a',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  modalMessage: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  modalButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  modalButtonCancel: {
-    backgroundColor: '#f5f5f5',
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  modalButtonConfirm: {
-    backgroundColor: '#4caf50',
-  },
-  modalButtonTextCancel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#666',
-  },
-  modalButtonTextConfirm: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
   },
 });

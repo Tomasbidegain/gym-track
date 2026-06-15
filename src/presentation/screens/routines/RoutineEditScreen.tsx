@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -18,6 +17,7 @@ import { useExercises } from '../../hooks/useExercises';
 import { useExercisePicker } from '../../context/ExercisePickerContext';
 import type { RoutineDay, RoutineExercise } from '../../../domain';
 import type { Exercise } from '../../../domain';
+import { ConfirmModal } from '../../components/ConfirmModal';
 import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
@@ -67,6 +67,14 @@ export function RoutineEditScreen({ route, navigation }: RoutineScreenProps<'Rou
   const [formError, setFormError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isReady, setIsReady] = useState(false);
+
+  const [showCannotDeleteDayModal, setShowCannotDeleteDayModal] = useState(false);
+  const [showDeleteDayModal, setShowDeleteDayModal] = useState(false);
+  const [pendingDeleteDayIndex, setPendingDeleteDayIndex] = useState<number | null>(null);
+
+  const [showCannotDeleteExerciseModal, setShowCannotDeleteExerciseModal] = useState(false);
+  const [showDeleteExerciseModal, setShowDeleteExerciseModal] = useState(false);
+  const [pendingDeleteExercise, setPendingDeleteExercise] = useState<{ dayIndex: number; exIndex: number } | null>(null);
 
   const expectingReturnRef = useRef(false);
 
@@ -151,30 +159,30 @@ export function RoutineEditScreen({ route, navigation }: RoutineScreenProps<'Rou
     (dayIndex: number) => {
       clearFormError();
       if (days.length <= 1) {
-        Alert.alert('No se puede eliminar', 'La rutina debe tener al menos un dia.');
+        setShowCannotDeleteDayModal(true);
         return;
       }
-      Alert.alert('Eliminar dia', `Queres eliminar "${days[dayIndex].name}"?`, [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: () => {
-            setDays((prev) => {
-              const newDays = prev.filter((_, i) => i !== dayIndex);
-              if (activeDayIndex >= newDays.length) {
-                setActiveDayIndex(newDays.length - 1);
-              } else if (activeDayIndex === dayIndex) {
-                setActiveDayIndex(Math.max(0, dayIndex - 1));
-              }
-              return newDays;
-            });
-          },
-        },
-      ]);
+      setPendingDeleteDayIndex(dayIndex);
+      setShowDeleteDayModal(true);
     },
-    [clearFormError, days, activeDayIndex],
+    [clearFormError, days],
   );
+
+  const handleConfirmDeleteDay = useCallback(() => {
+    if (pendingDeleteDayIndex === null) return;
+    setShowDeleteDayModal(false);
+    const dayIndex = pendingDeleteDayIndex;
+    setPendingDeleteDayIndex(null);
+    setDays((prev) => {
+      const newDays = prev.filter((_, i) => i !== dayIndex);
+      if (activeDayIndex >= newDays.length) {
+        setActiveDayIndex(newDays.length - 1);
+      } else if (activeDayIndex === dayIndex) {
+        setActiveDayIndex(Math.max(0, dayIndex - 1));
+      }
+      return newDays;
+    });
+  }, [pendingDeleteDayIndex, activeDayIndex]);
 
   const updateDayName = useCallback((dayIndex: number, newName: string) => {
     setDays((prev) =>
@@ -205,33 +213,33 @@ export function RoutineEditScreen({ route, navigation }: RoutineScreenProps<'Rou
       clearFormError();
       const day = days[dayIndex];
       if (day.exercises.length <= 1) {
-        Alert.alert('No se puede eliminar', 'El dia debe tener al menos un ejercicio.');
+        setShowCannotDeleteExerciseModal(true);
         return;
       }
-      Alert.alert('Eliminar ejercicio', 'Queres eliminar este ejercicio del dia?', [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: () => {
-            setDays((prev) =>
-              prev.map((d, i) =>
-                i === dayIndex
-                  ? {
-                      ...d,
-                      exercises: d.exercises
-                        .filter((_, idx) => idx !== exIndex)
-                        .map((ex, idx) => ({ ...ex, order: idx })),
-                    }
-                  : d,
-              ),
-            );
-          },
-        },
-      ]);
+      setPendingDeleteExercise({ dayIndex, exIndex });
+      setShowDeleteExerciseModal(true);
     },
     [clearFormError, days],
   );
+
+  const handleConfirmDeleteExercise = useCallback(() => {
+    if (!pendingDeleteExercise) return;
+    setShowDeleteExerciseModal(false);
+    const { dayIndex, exIndex } = pendingDeleteExercise;
+    setPendingDeleteExercise(null);
+    setDays((prev) =>
+      prev.map((d, i) =>
+        i === dayIndex
+          ? {
+              ...d,
+              exercises: d.exercises
+                .filter((_, idx) => idx !== exIndex)
+                .map((ex, idx) => ({ ...ex, order: idx })),
+            }
+          : d,
+      ),
+    );
+  }, [pendingDeleteExercise]);
 
   const handleDragEnd = useCallback(
     (dayIndex: number, newData: RoutineExercise[]) => {
@@ -567,6 +575,44 @@ export function RoutineEditScreen({ route, navigation }: RoutineScreenProps<'Rou
             <Text style={styles.cancelButtonText}>Cancelar</Text>
           </TouchableOpacity>
         </View>
+
+        <ConfirmModal
+          visible={showCannotDeleteDayModal}
+          title="No se puede eliminar"
+          message="La rutina debe tener al menos un dia."
+          buttons={[{ text: 'OK', onPress: () => setShowCannotDeleteDayModal(false), style: 'default' }]}
+          onClose={() => setShowCannotDeleteDayModal(false)}
+        />
+
+        <ConfirmModal
+          visible={showDeleteDayModal}
+          title="Eliminar dia"
+          message={pendingDeleteDayIndex !== null ? `Queres eliminar "${days[pendingDeleteDayIndex]?.name}"?` : ''}
+          buttons={[
+            { text: 'Cancelar', onPress: () => { setShowDeleteDayModal(false); setPendingDeleteDayIndex(null); }, style: 'cancel' },
+            { text: 'Eliminar', onPress: handleConfirmDeleteDay, style: 'destructive' },
+          ]}
+          onClose={() => { setShowDeleteDayModal(false); setPendingDeleteDayIndex(null); }}
+        />
+
+        <ConfirmModal
+          visible={showCannotDeleteExerciseModal}
+          title="No se puede eliminar"
+          message="El dia debe tener al menos un ejercicio."
+          buttons={[{ text: 'OK', onPress: () => setShowCannotDeleteExerciseModal(false), style: 'default' }]}
+          onClose={() => setShowCannotDeleteExerciseModal(false)}
+        />
+
+        <ConfirmModal
+          visible={showDeleteExerciseModal}
+          title="Eliminar ejercicio"
+          message="Queres eliminar este ejercicio del dia?"
+          buttons={[
+            { text: 'Cancelar', onPress: () => { setShowDeleteExerciseModal(false); setPendingDeleteExercise(null); }, style: 'cancel' },
+            { text: 'Eliminar', onPress: handleConfirmDeleteExercise, style: 'destructive' },
+          ]}
+          onClose={() => { setShowDeleteExerciseModal(false); setPendingDeleteExercise(null); }}
+        />
       </KeyboardAvoidingView>
     </GestureHandlerRootView>
   );
