@@ -6,12 +6,27 @@ import { RoutineDetailScreen } from '../screens/routines/RoutineDetailScreen';
 import { RoutineCreateScreen } from '../screens/routines/RoutineCreateScreen';
 import { RoutineEditScreen } from '../screens/routines/RoutineEditScreen';
 import { ExercisePickerScreen } from '../screens/exercises/ExercisePickerScreen';
+import { useTheme } from '../context/ThemeContext';
 
 const Stack = createNativeStackNavigator<RoutineStackParamList>();
 
 export function RoutineStack() {
+  const { theme } = useTheme();
+
   return (
-    <Stack.Navigator>
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: theme.colors.surface,
+        },
+        headerTintColor: theme.colors.text,
+        headerTitleStyle: {
+          fontWeight: '600',
+          color: theme.colors.text,
+        },
+        headerShadowVisible: false,
+      }}
+    >
       <Stack.Screen
         name="RoutineList"
         component={RoutineListScreen}

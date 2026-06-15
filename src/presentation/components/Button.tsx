@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, View, ViewStyle, TextStyle } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
@@ -69,26 +69,26 @@ export function Button({
   const getSizeStyles = () => {
     switch (size) {
       case 'small':
-        return { paddingVertical: 8, paddingHorizontal: 16 };
+        return { paddingVertical: 10, paddingHorizontal: 18 };
       case 'medium':
-        return { paddingVertical: 12, paddingHorizontal: 20 };
+        return { paddingVertical: 14, paddingHorizontal: 24 };
       case 'large':
-        return { paddingVertical: 16, paddingHorizontal: 24 };
+        return { paddingVertical: 18, paddingHorizontal: 32 };
       default:
-        return { paddingVertical: 12, paddingHorizontal: 20 };
+        return { paddingVertical: 14, paddingHorizontal: 24 };
     }
   };
 
   const getTextSize = () => {
     switch (size) {
       case 'small':
-        return { fontSize: 13 };
+        return { fontSize: 14 };
       case 'medium':
-        return { fontSize: 15 };
+        return { fontSize: 16 };
       case 'large':
-        return { fontSize: 17 };
+        return { fontSize: 18 };
       default:
-        return { fontSize: 15 };
+        return { fontSize: 16 };
     }
   };
 
@@ -101,12 +101,13 @@ export function Button({
           backgroundColor: getBackgroundColor(),
           borderColor: variant === 'outline' ? theme.colors.primary : 'transparent',
           borderWidth: variant === 'outline' ? 2 : 0,
+          shadowColor: variant === 'primary' || variant === 'danger' ? getBackgroundColor() : 'transparent',
         },
         style,
       ]}
       onPress={onPress}
       disabled={disabled || loading}
-      activeOpacity={0.7}
+      activeOpacity={0.85}
     >
       {loading ? (
         <ActivityIndicator size="small" color={getTextColor()} />
@@ -124,15 +125,22 @@ export function Button({
 
 const styles = StyleSheet.create({
   button: {
-    borderRadius: 12,
+    borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    // iOS shadow
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    // Android shadow
+    elevation: 4,
   },
   text: {
-    fontWeight: '600',
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   icon: {
-    marginRight: 8,
+    marginRight: 10,
   },
 });

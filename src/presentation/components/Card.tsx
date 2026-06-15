@@ -9,7 +9,7 @@ interface CardProps {
 }
 
 export function Card({ children, style, elevated = false }: CardProps) {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
 
   return (
     <View
@@ -18,7 +18,7 @@ export function Card({ children, style, elevated = false }: CardProps) {
         {
           backgroundColor: elevated ? theme.colors.surfaceElevated : theme.colors.surface,
           borderColor: theme.colors.border,
-          shadowColor: theme.colors.shadow,
+          shadowColor: isDark ? '#000' : theme.colors.primary,
         },
         style,
       ]}
@@ -30,14 +30,14 @@ export function Card({ children, style, elevated = false }: CardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 20,
+    padding: 18,
     borderWidth: 1,
     // iOS shadow
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
     // Android shadow
-    elevation: 2,
+    elevation: 4,
   },
 });

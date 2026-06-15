@@ -5,12 +5,27 @@ import { ExerciseListScreen } from '../screens/exercises/ExerciseListScreen';
 import { ExerciseDetailScreen } from '../screens/exercises/ExerciseDetailScreen';
 import { ExerciseCreateScreen } from '../screens/exercises/ExerciseCreateScreen';
 import { ExerciseEditScreen } from '../screens/exercises/ExerciseEditScreen';
+import { useTheme } from '../context/ThemeContext';
 
 const Stack = createNativeStackNavigator<ExerciseStackParamList>();
 
 export function ExerciseStack() {
+  const { theme } = useTheme();
+
   return (
-    <Stack.Navigator>
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: theme.colors.surface,
+        },
+        headerTintColor: theme.colors.text,
+        headerTitleStyle: {
+          fontWeight: '600',
+          color: theme.colors.text,
+        },
+        headerShadowVisible: false,
+      }}
+    >
       <Stack.Screen
         name="ExerciseList"
         component={ExerciseListScreen}

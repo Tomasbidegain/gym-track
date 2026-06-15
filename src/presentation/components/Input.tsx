@@ -42,25 +42,25 @@ export function Input({ label, error, containerStyle, style, ...props }: InputPr
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 16,
+    marginBottom: 18,
   },
   label: {
     fontSize: 13,
     fontWeight: '600',
-    marginBottom: 6,
+    marginBottom: 8,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   input: {
     borderWidth: 1.5,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     fontSize: 16,
   },
   error: {
     fontSize: 12,
-    marginTop: 4,
+    marginTop: 6,
     fontWeight: '500',
   },
 });

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { useAuthContext } from '../context/AuthContext';
 import { RoutineContextProvider } from '../context/RoutineContext';
 import { WorkoutSessionContextProvider } from '../context/WorkoutSessionContext';
@@ -11,7 +11,19 @@ import { MainAppTabs } from './MainAppTabs';
 
 function RootNavigatorContent() {
   const { user, isInitializing } = useAuthContext();
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
+
+  const navigationTheme = {
+    dark: isDark,
+    colors: {
+      primary: theme.colors.primary,
+      background: theme.colors.background,
+      card: theme.colors.surface,
+      text: theme.colors.text,
+      border: theme.colors.border,
+      notification: theme.colors.error,
+    },
+  };
 
   if (isInitializing) {
     return (
@@ -22,7 +34,7 @@ function RootNavigatorContent() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={navigationTheme}>
       {user ? (
         <RoutineContextProvider>
           <WorkoutSessionContextProvider>

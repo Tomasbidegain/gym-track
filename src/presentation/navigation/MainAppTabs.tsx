@@ -20,9 +20,34 @@ export function MainAppTabs() {
         tabBarStyle: {
           backgroundColor: theme.colors.surface,
           borderTopColor: theme.colors.borderLight,
+          borderTopWidth: 1,
+          height: 60,
+          paddingBottom: 8,
+          paddingTop: 8,
+          shadowColor: theme.colors.shadow,
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 8,
+          elevation: 8,
         },
         tabBarActiveTintColor: theme.colors.primary,
-        tabBarInactiveTintColor: theme.colors.textSecondary,
+        tabBarInactiveTintColor: theme.colors.textMuted,
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '600',
+        },
+        headerStyle: {
+          backgroundColor: theme.colors.surface,
+          shadowColor: theme.colors.shadow,
+          elevation: 0,
+          shadowOpacity: 0,
+        },
+        headerTintColor: theme.colors.text,
+        headerTitleStyle: {
+          fontWeight: '700',
+          fontSize: 18,
+        },
+        headerShadowVisible: false,
       }}
     >
       <Tab.Screen
@@ -34,7 +59,7 @@ export function MainAppTabs() {
           headerShown: false,
           tabBarIcon(props) {
             return (
-              <FontAwesome5 name="dumbbell" size={20} color={props.color} />
+              <FontAwesome5 name="dumbbell" size={22} color={props.color} />
             );
           },
         }}
@@ -47,7 +72,7 @@ export function MainAppTabs() {
           tabBarLabel: "Rutinas",
           headerShown: false,
           tabBarIcon(props) {
-            return <FontAwesome5 name="list" size={20} color={props.color} />;
+            return <FontAwesome5 name="list" size={22} color={props.color} />;
           },
         }}
       />
@@ -59,10 +84,9 @@ export function MainAppTabs() {
           tabBarLabel: "Progreso",
           tabBarIcon(props) {
             return (
-              <FontAwesome name="line-chart" size={20} color={props.color} />
+              <FontAwesome name="line-chart" size={22} color={props.color} />
             );
           },
-          
         }}
       />
       <Tab.Screen
@@ -74,7 +98,7 @@ export function MainAppTabs() {
           headerShown: false,
           tabBarIcon(props) {
             return (
-              <FontAwesome5 name="running" size={20} color={props.color} />
+              <FontAwesome5 name="running" size={22} color={props.color} />
             );
           },
         }}
@@ -86,7 +110,7 @@ export function MainAppTabs() {
           title: "Perfil",
           tabBarLabel: "Perfil",
           tabBarIcon(props) {
-            return <FontAwesome name="user" size={20} color={props.color} />;
+            return <FontAwesome name="user" size={22} color={props.color} />;
           },
         }}
       />
