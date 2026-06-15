@@ -7,6 +7,7 @@ import {
   Dimensions,
 } from 'react-native';
 import type { WorkoutSession } from '../../../../domain/entities/WorkoutSession';
+import { useTheme } from '../../../context/ThemeContext';
 
 interface CalendarViewProps {
   sessions: WorkoutSession[];
@@ -15,6 +16,7 @@ interface CalendarViewProps {
 const WEEKDAYS = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'];
 
 export function CalendarView({ sessions }: CalendarViewProps) {
+  const { theme } = useTheme();
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
   const completedSessions = useMemo(() => {
@@ -93,30 +95,30 @@ export function CalendarView({ sessions }: CalendarViewProps) {
   const cellSize = Math.floor((screenWidth - 32 - 6 * 4) / 7); // 32 padding, 4 gap
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.surface }]}>
       {/* Header with month navigation */}
       <View style={styles.header}>
         <TouchableOpacity
-          style={styles.navButton}
+          style={[styles.navButton, { backgroundColor: theme.colors.surfaceElevated }]}
           onPress={() => navigateMonth('prev')}
         >
-          <Text style={styles.navButtonText}>←</Text>
+          <Text style={[styles.navButtonText, { color: theme.colors.primary }]}>←</Text>
         </TouchableOpacity>
         
-        <Text style={styles.monthYear}>{monthYear}</Text>
+        <Text style={[styles.monthYear, { color: theme.colors.text }]}>{monthYear}</Text>
         
         <TouchableOpacity
-          style={styles.navButton}
+          style={[styles.navButton, { backgroundColor: theme.colors.surfaceElevated }]}
           onPress={() => navigateMonth('next')}
         >
-          <Text style={styles.navButtonText}>→</Text>
+          <Text style={[styles.navButtonText, { color: theme.colors.primary }]}>→</Text>
         </TouchableOpacity>
       </View>
 
       {/* Weekday headers */}
       <View style={styles.weekdaysRow}>
         {WEEKDAYS.map((day) => (
-          <Text key={day} style={styles.weekdayText}>
+          <Text key={day} style={[styles.weekdayText, { color: theme.colors.textSecondary }]}>
             {day}
           </Text>
         ))}
@@ -140,9 +142,16 @@ export function CalendarView({ sessions }: CalendarViewProps) {
               key={dateStr}
               style={[
                 styles.dayCell,
-                { width: cellSize, height: cellSize },
-                isToday && styles.todayCell,
-                hasWorkout && styles.workoutCell,
+                { 
+                  width: cellSize, 
+                  height: cellSize,
+                  backgroundColor: hasWorkout ? theme.colors.success : theme.colors.surfaceElevated,
+                },
+                isToday && {
+                  borderWidth: 2,
+                  borderColor: theme.colors.primary,
+                  backgroundColor: hasWorkout ? theme.colors.success : theme.colors.primaryLight,
+                },
               ]}
               activeOpacity={hasWorkout ? 0.7 : 1}
               disabled={!hasWorkout}
@@ -150,8 +159,8 @@ export function CalendarView({ sessions }: CalendarViewProps) {
               <Text
                 style={[
                   styles.dayNumber,
-                  isToday && styles.todayText,
-                  hasWorkout && styles.workoutText,
+                  { color: hasWorkout ? '#fff' : theme.colors.text },
+                  isToday && !hasWorkout && { color: theme.colors.primary, fontWeight: '700' },
                 ]}
               >
                 {day}
@@ -173,15 +182,13 @@ export function CalendarView({ sessions }: CalendarViewProps) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 20,
+    padding: 18,
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 12,
+    elevation: 4,
   },
   header: {
     flexDirection: 'row',
@@ -190,19 +197,16 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   navButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#f5f5f5',
+    padding: 10,
+    borderRadius: 10,
   },
   navButtonText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#2f95dc',
   },
   monthYear: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1a1a1a',
     textTransform: 'capitalize',
   },
   weekdaysRow: {
@@ -213,7 +217,6 @@ const styles = StyleSheet.create({
   weekdayText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#888',
     width: 36,
     textAlign: 'center',
   },
@@ -227,28 +230,11 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 8,
-    backgroundColor: '#f8f9fa',
-  },
-  todayCell: {
-    borderWidth: 2,
-    borderColor: '#2f95dc',
-    backgroundColor: '#e3f2fd',
-  },
-  workoutCell: {
-    backgroundColor: '#4caf50',
+    borderRadius: 10,
   },
   dayNumber: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
-  },
-  todayText: {
-    color: '#2f95dc',
-    fontWeight: '700',
-  },
-  workoutText: {
-    color: '#fff',
   },
   workoutIndicator: {
     marginTop: 2,

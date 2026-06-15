@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { useTheme } from '../../../context/ThemeContext';
 
 interface StatsOverviewCardProps {
   totalWorkouts: number;
@@ -14,24 +15,26 @@ export function StatsOverviewCard({
   globalPR,
   streak,
 }: StatsOverviewCardProps) {
+  const { theme } = useTheme();
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.surface }]}>
       <View style={styles.grid}>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{totalWorkouts}</Text>
-          <Text style={styles.statLabel}>Entrenamientos (mes)</Text>
+        <View style={[styles.statCard, { backgroundColor: theme.colors.surfaceElevated }]}>
+          <Text style={[styles.statValue, { color: theme.colors.primary }]}>{totalWorkouts}</Text>
+          <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Entrenamientos (mes)</Text>
         </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{weeklyVolume.toLocaleString()}</Text>
-          <Text style={styles.statLabel}>Vol. semanal (kg)</Text>
+        <View style={[styles.statCard, { backgroundColor: theme.colors.surfaceElevated }]}>
+          <Text style={[styles.statValue, { color: theme.colors.primary }]}>{weeklyVolume.toLocaleString()}</Text>
+          <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Vol. semanal (kg)</Text>
         </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{globalPR}</Text>
-          <Text style={styles.statLabel}>PR Global (kg)</Text>
+        <View style={[styles.statCard, { backgroundColor: theme.colors.surfaceElevated }]}>
+          <Text style={[styles.statValue, { color: theme.colors.primary }]}>{globalPR}</Text>
+          <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>PR Global (kg)</Text>
         </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{streak}</Text>
-          <Text style={styles.statLabel}>Racha (días)</Text>
+        <View style={[styles.statCard, { backgroundColor: theme.colors.surfaceElevated }]}>
+          <Text style={[styles.statValue, { color: theme.colors.primary }]}>{streak}</Text>
+          <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Racha (días)</Text>
         </View>
       </View>
     </View>
@@ -40,15 +43,13 @@ export function StatsOverviewCard({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 20,
+    padding: 18,
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 12,
+    elevation: 4,
   },
   grid: {
     flexDirection: 'row',
@@ -57,20 +58,17 @@ const styles = StyleSheet.create({
   },
   statCard: {
     width: '47%',
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: 14,
+    padding: 14,
     alignItems: 'center',
   },
   statValue: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: '800',
-    color: '#2f95dc',
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
-    color: '#888',
     fontWeight: '600',
     textAlign: 'center',
   },
