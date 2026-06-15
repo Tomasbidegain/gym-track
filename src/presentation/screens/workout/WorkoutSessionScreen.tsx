@@ -11,6 +11,7 @@ import {
   Alert,
   BackHandler,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { SessionTimer } from '../../components/SessionTimer';
@@ -47,6 +48,7 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
   const [restTimerTotal, setRestTimerTotal] = useState(0);
   const [isRestRunning, setIsRestRunning] = useState(false);
   const [currentSetInProgress, setCurrentSetInProgress] = useState(false);
+  const [showCompleteModal, setShowCompleteModal] = useState(false);
   const sessionCompletedRef = useRef(false);
 
   const routine = routines.find((r) => r.id === routineId);
@@ -413,54 +415,49 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
 
   const handleCompleteSession = useCallback(async () => {
     if (!sessionId || !routine) return;
-    Alert.alert(
-      'Finalizar entrenamiento',
-      '¿Estas seguro de que queres finalizar?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Finalizar',
-          onPress: async () => {
-            setIsSaving(true);
-            setIsRestRunning(false);
+    setShowCompleteModal(true);
+  }, [sessionId, routine]);
 
-            const updatedDays: RoutineDay[] = routine.days.map((d) => {
-              if (d.id !== currentDayId) return d;
-              const updatedExercises = d.exercises.map((ex) => {
-                const sessionExercise = exercises.find((se) => se.exerciseId === ex.exerciseId);
-                if (!sessionExercise) return ex;
-                const completedSets = sessionExercise.sets.filter((s) => s.completed);
-                if (completedSets.length === 0) return ex;
+  const confirmCompleteSession = useCallback(async () => {
+    setShowCompleteModal(false);
+    if (!sessionId || !routine) return;
+    
+    setIsSaving(true);
+    setIsRestRunning(false);
 
-                if (ex.isTimeBased) {
-                  const avgDuration = completedSets.reduce((sum, s) => sum + (s.durationSeconds || 0), 0) / completedSets.length;
-                  return {
-                    ...ex,
-                    targetSets: completedSets.length,
-                    targetDurationSeconds: Math.round(avgDuration),
-                  };
-                }
+    const updatedDays: RoutineDay[] = routine.days.map((d) => {
+      if (d.id !== currentDayId) return d;
+      const updatedExercises = d.exercises.map((ex) => {
+        const sessionExercise = exercises.find((se) => se.exerciseId === ex.exerciseId);
+        if (!sessionExercise) return ex;
+        const completedSets = sessionExercise.sets.filter((s) => s.completed);
+        if (completedSets.length === 0) return ex;
 
-                const avgWeight = completedSets.reduce((sum, s) => sum + s.weight, 0) / completedSets.length;
-                const avgReps = completedSets.reduce((sum, s) => sum + s.reps, 0) / completedSets.length;
-                return {
-                  ...ex,
-                  targetSets: completedSets.length,
-                  targetReps: Math.round(avgReps),
-                };
-              });
-              return { ...d, exercises: updatedExercises };
-            });
+        if (ex.isTimeBased) {
+          const avgDuration = completedSets.reduce((sum, s) => sum + (s.durationSeconds || 0), 0) / completedSets.length;
+          return {
+            ...ex,
+            targetSets: completedSets.length,
+            targetDurationSeconds: Math.round(avgDuration),
+          };
+        }
 
-            await updateRoutine(routineId, { days: updatedDays });
-            await completeSession(sessionId);
-            sessionCompletedRef.current = true;
-            setIsSaving(false);
-            navigation.goBack();
-          },
-        },
-      ],
-    );
+        const avgWeight = completedSets.reduce((sum, s) => sum + s.weight, 0) / completedSets.length;
+        const avgReps = completedSets.reduce((sum, s) => sum + s.reps, 0) / completedSets.length;
+        return {
+          ...ex,
+          targetSets: completedSets.length,
+          targetReps: Math.round(avgReps),
+        };
+      });
+      return { ...d, exercises: updatedExercises };
+    });
+
+    await updateRoutine(routineId, { days: updatedDays });
+    await completeSession(sessionId);
+    sessionCompletedRef.current = true;
+    setIsSaving(false);
+    navigation.goBack();
   }, [sessionId, routine, currentDayId, exercises, completeSession, updateRoutine, routineId, navigation]);
 
   const handleCancelRest = useCallback(() => {
@@ -900,6 +897,39 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
           )}
         </>
       )}
+
+      {/* Complete Session Confirmation Modal */}
+      <Modal
+        visible={showCompleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowCompleteModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Finalizar entrenamiento</Text>
+            <Text style={styles.modalMessage}>
+              ¿Estás seguro de que querés finalizar?
+            </Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonCancel]}
+                onPress={() => setShowCompleteModal(false)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modalButtonTextCancel}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonConfirm]}
+                onPress={confirmCompleteSession}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modalButtonTextConfirm}>Finalizar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -1292,5 +1322,59 @@ const styles = StyleSheet.create({
     color: '#d32f2f',
     textAlign: 'center',
     marginTop: 40,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    width: '80%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  modalButtonCancel: {
+    backgroundColor: '#f5f5f5',
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  modalButtonConfirm: {
+    backgroundColor: '#4caf50',
+  },
+  modalButtonTextCancel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#666',
+  },
+  modalButtonTextConfirm: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
 });
