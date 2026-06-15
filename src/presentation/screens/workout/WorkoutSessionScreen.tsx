@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect, useRef } from 'react';
+import React, { useCallback, useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,22 +13,23 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { RestTimer } from '../../components/RestTimer';
 import { SessionTimer } from '../../components/SessionTimer';
-import { ExerciseTimer } from '../../components/ExerciseTimer';
 import type { TrainScreenProps } from '../../navigation/types';
 import { useRoutines } from '../../hooks/useRoutines';
 import { useWorkoutSessionContext } from '../../context/WorkoutSessionContext';
 import { useCompletedDaysInWeek } from '../../hooks/useCompletedDaysInWeek';
 import { generateSetsFromRoutine } from '../../../domain';
-import type { RoutineDay, RoutineExercise, WorkoutExercise, WorkoutSet } from '../../../domain';
+import type { RoutineDay, WorkoutExercise } from '../../../domain';
 
-// Extended exercise type that includes both routine metadata and workout set data
 type SessionExercise = WorkoutExercise & {
   restSeconds: number;
   isTimeBased?: boolean;
   targetDurationSeconds?: number;
+  targetReps: number;
+  targetSets: number;
 };
+
+type FooterMode = 'idle' | 'start_set' | 'end_set' | 'rest' | 'next_exercise' | 'finish';
 
 export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'WorkoutSession'>) {
   const { routineId, dayId: initialDayId } = route.params;
@@ -36,35 +37,56 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
   const { startSession, updateSet, completeSession, markSessionComplete, sessions } = useWorkoutSessionContext();
   const { completedDayIds, isLoading: isLoadingCompletedDays, refresh: refreshCompletedDays } = useCompletedDaysInWeek(routineId);
 
-  // Local state for current day (no navigation between days)
   const [currentDayId, setCurrentDayId] = useState(initialDayId);
-
-  // Refresh completed days only once on mount
-  useEffect(() => {
-    refreshCompletedDays();
-  }, [refreshCompletedDays]);
+  const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [footerMode, setFooterMode] = useState<FooterMode>('idle');
+  const [exerciseTimerSeconds, setExerciseTimerSeconds] = useState(0);
+  const [restTimerSeconds, setRestTimerSeconds] = useState(0);
+  const [restTimerTotal, setRestTimerTotal] = useState(0);
+  const [isRestRunning, setIsRestRunning] = useState(false);
+  const [currentSetInProgress, setCurrentSetInProgress] = useState(false);
+  const sessionCompletedRef = useRef(false);
 
   const routine = routines.find((r) => r.id === routineId);
   const day = routine?.days.find((d) => d.id === currentDayId);
-
   const isDayCompleted = completedDayIds.has(currentDayId);
 
-  // Find the completed session for this day (most recent completed this week)
-  const completedSession = React.useMemo(() => {
+  const completedSession = useMemo(() => {
     if (!isDayCompleted) return null;
     return sessions.find(
       (s) => s.dayId === currentDayId && s.routineId === routineId && s.isCompleted
     ) || null;
   }, [isDayCompleted, sessions, currentDayId, routineId]);
 
-  const [sessionId, setSessionId] = useState<string | null>(null);
   const activeSession = sessionId ? sessions.find((s) => s.id === sessionId) : null;
-  const sessionCompletedRef = React.useRef(false);
+
+  // Find the last weight and reps for an exercise from previous completed sessions
+  const findLastSetForExercise = useCallback((exerciseId: string) => {
+    const completedSessions = sessions.filter((s) => s.isCompleted);
+    const sessionsWithExercise = completedSessions
+      .map((s) => {
+        const exercise = s.exercises.find((e) => e.exerciseId === exerciseId);
+        if (!exercise) return null;
+        const completedSets = exercise.sets.filter((set) => set.completed);
+        if (completedSets.length === 0) return null;
+        const lastSet = completedSets[completedSets.length - 1];
+        return { weight: lastSet.weight, reps: lastSet.reps, completedAt: s.completedAt };
+      })
+      .filter((item): item is { weight: number; reps: number; completedAt: Date | undefined } => item !== null);
+
+    sessionsWithExercise.sort((a, b) => {
+      if (!a.completedAt || !b.completedAt) return 0;
+      return b.completedAt.getTime() - a.completedAt.getTime();
+    });
+
+    return sessionsWithExercise[0] || null;
+  }, [sessions]);
 
   const [exercises, setExercises] = useState<SessionExercise[]>(() => {
     if (!day) return [];
     if (completedSession) {
-      // Merge session data with routine metadata for completed days
       return day.exercises.map((routineEx) => {
         const sessionEx = completedSession.exercises.find(
           (se) => se.exerciseId === routineEx.exerciseId
@@ -75,12 +97,28 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
         };
       });
     }
-    return day.exercises.map((ex) => ({
-      ...ex,
-      sets: generateSetsFromRoutine(ex),
-    }));
+    return day.exercises.map((ex) => {
+      const lastSet = findLastSetForExercise(ex.exerciseId);
+      return {
+        ...ex,
+        sets: generateSetsFromRoutine(ex).map((set) => ({
+          ...set,
+          weight: lastSet ? lastSet.weight : set.weight,
+          reps: lastSet ? lastSet.reps : set.reps,
+        })),
+      };
+    });
   });
-  const [isSaving, setIsSaving] = useState(false);
+
+  // Reset exercise index and timers when day changes
+  useEffect(() => {
+    setCurrentExerciseIndex(0);
+    setIsRestRunning(false);
+    setExerciseTimerSeconds(0);
+    setRestTimerSeconds(0);
+    setFooterMode('idle');
+    setCurrentSetInProgress(false);
+  }, [currentDayId]);
 
   // When switching days, update exercises based on completion status
   useEffect(() => {
@@ -97,32 +135,40 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
       setExercises(mergedExercises);
       setSessionId(null);
     } else if (!isDayCompleted && day) {
-      setExercises(
-        day.exercises.map((ex) => ({
+      const exercisesWithLastWeight = day.exercises.map((ex) => {
+        const lastSet = findLastSetForExercise(ex.exerciseId);
+        return {
           ...ex,
-          sets: generateSetsFromRoutine(ex),
-        }))
-      );
+          sets: generateSetsFromRoutine(ex).map((set) => ({
+            ...set,
+            weight: lastSet ? lastSet.weight : set.weight,
+            reps: lastSet ? lastSet.reps : set.reps,
+          })),
+        };
+      });
+      setExercises(exercisesWithLastWeight);
       setSessionId(null);
     }
   }, [isDayCompleted, completedSession, day, currentDayId]);
 
-  // Timer states
-  const [timerActive, setTimerActive] = useState(false);
-  const [timerRunning, setTimerRunning] = useState(false);
-  const [timerSeconds, setTimerSeconds] = useState(0);
-  const [timerTotal, setTimerTotal] = useState(0);
-  const [timerExerciseName, setTimerExerciseName] = useState('');
-  const [timerSetNumber, setTimerSetNumber] = useState(0);
-  const [timerNextSet, setTimerNextSet] = useState<number | undefined>();
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Ensure currentExerciseIndex is valid
+  useEffect(() => {
+    if (exercises.length > 0 && currentExerciseIndex >= exercises.length) {
+      setCurrentExerciseIndex(0);
+    }
+  }, [exercises.length, currentExerciseIndex]);
+
+  const currentExercise = exercises[currentExerciseIndex];
+  const activeSetIndex = useMemo(() => {
+    if (!currentExercise) return -1;
+    return currentExercise.sets.findIndex((s) => !s.completed);
+  }, [currentExercise]);
+  const nextExercise = useMemo(() => {
+    return exercises[currentExerciseIndex + 1] || null;
+  }, [exercises, currentExerciseIndex]);
 
   const handleStartSession = useCallback(async () => {
-    if (!routine || !day) {
-      console.log('No hay routine o day');
-      return;
-    }
-    console.log('Iniciando sesion...');
+    if (!routine || !day) return;
     setIsSaving(true);
     try {
       const session = await startSession({
@@ -139,11 +185,11 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
           sets: ex.sets,
         })),
       });
-      console.log('Session creada:', session);
       if (session) {
         setSessionId(session.id);
-      } else {
-        console.log('Session es null');
+        setExerciseTimerSeconds(0);
+        setCurrentSetInProgress(false);
+        setFooterMode('start_set');
       }
     } catch (error) {
       console.error('Error al iniciar sesion:', error);
@@ -152,57 +198,162 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
     setIsSaving(false);
   }, [routine, day, exercises, startSession]);
 
-  // Timer countdown effect
+  const handleUpdateSetValue = useCallback(
+    async (exerciseIndex: number, setIndex: number, field: 'weight' | 'reps', value: number) => {
+      if (!sessionId) return;
+      const newExercises = exercises.map((ex, idx) => {
+        if (idx !== exerciseIndex) return ex;
+        return {
+          ...ex,
+          sets: ex.sets.map((s, sIdx) => {
+            if (sIdx !== setIndex) return s;
+            return { ...s, [field]: value };
+          }),
+        };
+      });
+      setExercises(newExercises);
+
+      const updatedSet = newExercises[exerciseIndex].sets[setIndex];
+      await updateSet(sessionId, {
+        exerciseIndex,
+        setIndex,
+        reps: updatedSet.reps,
+        weight: updatedSet.weight,
+        completed: updatedSet.completed,
+      });
+    },
+    [sessionId, exercises, updateSet],
+  );
+
+  const handleStartSet = useCallback(() => {
+    if (!sessionId) return;
+    const currentEx = exercises[currentExerciseIndex];
+    if (!currentEx) return;
+    const setIdx = currentEx.sets.findIndex((s) => !s.completed);
+    if (setIdx < 0) return;
+
+    if (currentEx.isTimeBased) {
+      setExerciseTimerSeconds(0);
+    }
+    setCurrentSetInProgress(true);
+    setFooterMode('end_set');
+  }, [sessionId, exercises, currentExerciseIndex]);
+
+  const handleCompleteSet = useCallback(async (exIndex: number, setIndex: number, durationSeconds?: number) => {
+    if (!sessionId) return;
+
+    const newExercises = exercises.map((ex, idx) => {
+      if (idx !== exIndex) return ex;
+      return {
+        ...ex,
+        sets: ex.sets.map((s, sIdx) => {
+          if (sIdx !== setIndex) return s;
+          return {
+            ...s,
+            completed: true,
+            ...(durationSeconds !== undefined && durationSeconds > 0 ? { durationSeconds } : {}),
+          };
+        }),
+      };
+    });
+    setExercises(newExercises);
+
+    // Start rest timer IMMEDIATELY (don't wait for network)
+    setCurrentSetInProgress(false);
+    const exercise = newExercises[exIndex];
+    const restSeconds = exercise.restSeconds || 90;
+    setRestTimerSeconds(restSeconds);
+    setRestTimerTotal(restSeconds);
+    setIsRestRunning(true);
+    setFooterMode('rest');
+
+    // Save to backend in background (fire-and-forget, don't block UI)
+    const updatedSet = newExercises[exIndex].sets[setIndex];
+    updateSet(sessionId, {
+      exerciseIndex: exIndex,
+      setIndex,
+      reps: updatedSet.reps,
+      weight: updatedSet.weight,
+      completed: true,
+      durationSeconds: updatedSet.durationSeconds,
+    }).catch((err) => {
+      console.error('Error saving set:', err);
+    });
+  }, [sessionId, exercises, updateSet]);
+
+  const handleEndSet = useCallback(() => {
+    if (!sessionId) return;
+    const currentEx = exercises[currentExerciseIndex];
+    if (!currentEx) return;
+    const setIdx = currentEx.sets.findIndex((s) => !s.completed);
+    if (setIdx < 0) return;
+
+    if (currentEx.isTimeBased) {
+      handleCompleteSet(currentExerciseIndex, setIdx, exerciseTimerSeconds);
+      setExerciseTimerSeconds(0);
+    } else {
+      handleCompleteSet(currentExerciseIndex, setIdx);
+    }
+  }, [sessionId, exercises, currentExerciseIndex, handleCompleteSet, exerciseTimerSeconds]);
+
+  // Exercise timer effect (for time-based exercises when in end_set mode)
   useEffect(() => {
-    if (timerRunning && timerSeconds > 0) {
-      intervalRef.current = setInterval(() => {
-        setTimerSeconds((prev) => {
-          if (prev <= 1) {
-            // Timer finished
-            if (intervalRef.current) {
-              clearInterval(intervalRef.current);
-              intervalRef.current = null;
-            }
-            setTimerRunning(false);
-            // Keep showing "finished" state for 2 seconds, then hide
-            setTimeout(() => {
-              setTimerActive(false);
-            }, 2000);
+    if (footerMode !== 'end_set') return;
+    const currentEx = exercises[currentExerciseIndex];
+    if (!currentEx || !currentEx.isTimeBased) return;
+
+    const interval = setInterval(() => {
+      setExerciseTimerSeconds((prev) => prev + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [footerMode, exercises, currentExerciseIndex]);
+
+  // Rest timer countdown effect
+  useEffect(() => {
+    if (footerMode !== 'rest' || !isRestRunning) return;
+
+    const interval = setInterval(() => {
+      setRestTimerSeconds((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          setIsRestRunning(false);
+
+          const currentEx = exercises[currentExerciseIndex];
+          if (!currentEx) {
+            setFooterMode('finish');
             return 0;
           }
-          return prev - 1;
-        });
-      }, 1000);
-    }
+          const nextSetIdx = currentEx.sets.findIndex((s) => !s.completed);
+          if (nextSetIdx >= 0) {
+            setFooterMode('start_set');
+          } else {
+            const hasNextEx = currentExerciseIndex < exercises.length - 1;
+            setFooterMode(hasNextEx ? 'next_exercise' : 'finish');
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
 
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
-  }, [timerRunning, timerSeconds]);
+    return () => clearInterval(interval);
+  }, [footerMode, isRestRunning, exercises, currentExerciseIndex]);
 
-  // Cleanup timer on unmount
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
+      setIsRestRunning(false);
     };
   }, []);
 
   // Intercept navigation exit when session is incomplete
   useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove', (e) => {
-      // Allow navigation if no session or session was just completed
       if (!sessionId || sessionCompletedRef.current) return;
-      
       const session = sessions.find((s) => s.id === sessionId);
       if (!session || session.isCompleted) return;
 
       e.preventDefault();
-
       Alert.alert(
         `${day?.name} is incomplete`,
         'Mark as completed or resume another day?',
@@ -230,9 +381,7 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
   // Android hardware back fallback
   useEffect(() => {
     const onBackPress = () => {
-      // Allow navigation if no session or session was just completed
       if (!sessionId || sessionCompletedRef.current) return false;
-      
       const session = sessions.find((s) => s.id === sessionId);
       if (!session || session.isCompleted) return false;
 
@@ -262,129 +411,6 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
     return () => backHandler.remove();
   }, [sessionId, sessions, markSessionComplete, day, navigation]);
 
-  const handleUpdateSet = useCallback(
-    async (exerciseIndex: number, setIndex: number, field: 'weight' | 'reps', value: number) => {
-      if (!sessionId) return;
-      const newExercises = [...exercises];
-      newExercises[exerciseIndex].sets[setIndex] = {
-        ...newExercises[exerciseIndex].sets[setIndex],
-        [field]: value,
-      };
-      setExercises(newExercises);
-
-      await updateSet(sessionId, {
-        exerciseIndex,
-        setIndex,
-        reps: newExercises[exerciseIndex].sets[setIndex].reps,
-        weight: newExercises[exerciseIndex].sets[setIndex].weight,
-        completed: newExercises[exerciseIndex].sets[setIndex].completed,
-      });
-    },
-    [sessionId, exercises, updateSet],
-  );
-
-  const handleToggleSet = useCallback(
-    async (exerciseIndex: number, setIndex: number) => {
-      if (!sessionId) return;
-      if (timerActive && timerRunning) return; // Block during active rest timer
-      
-      const newExercises = [...exercises];
-      const set = newExercises[exerciseIndex].sets[setIndex];
-      const wasCompleted = set.completed;
-      set.completed = !set.completed;
-      setExercises(newExercises);
-
-      // Start timer immediately when set is completed (not when uncompleted)
-      if (!wasCompleted && set.completed && routine) {
-        const exercise = newExercises[exerciseIndex];
-        const restSeconds = exercise.restSeconds || 90;
-        const nextSetIdx = exercise.sets.findIndex((s, idx) => idx > setIndex && !s.completed);
-        
-        setTimerExerciseName(exercise.exerciseName);
-        setTimerSetNumber(setIndex + 1);
-        setTimerNextSet(nextSetIdx >= 0 ? nextSetIdx + 1 : undefined);
-        setTimerSeconds(restSeconds);
-        setTimerTotal(restSeconds);
-        setTimerActive(true);
-        setTimerRunning(true);
-      }
-
-      await updateSet(sessionId, {
-        exerciseIndex,
-        setIndex,
-        reps: set.reps,
-        weight: set.weight,
-        completed: set.completed,
-      });
-    },
-    [sessionId, exercises, updateSet, routine, timerActive, timerRunning],
-  );
-
-  // Timer functions
-  const handlePauseTimer = useCallback(() => {
-    setTimerRunning(false);
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-  }, []);
-
-  const handleResumeTimer = useCallback(() => {
-    setTimerRunning(true);
-  }, []);
-
-  const handleCancelTimer = useCallback(() => {
-    setTimerActive(false);
-    setTimerRunning(false);
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-  }, []);
-
-  const handleAddTime = useCallback((seconds: number) => {
-    setTimerSeconds((prev) => prev + seconds);
-    setTimerTotal((prev) => prev + seconds);
-  }, []);
-
-  const handleTimerComplete = useCallback(
-    async (exerciseIndex: number, setIndex: number, durationSeconds: number) => {
-      if (!sessionId) return;
-      if (durationSeconds <= 0) return;
-
-      const newExercises = [...exercises];
-      const set = newExercises[exerciseIndex].sets[setIndex];
-      set.completed = true;
-      set.durationSeconds = durationSeconds;
-      setExercises(newExercises);
-
-      // Start rest timer immediately
-      if (routine) {
-        const exercise = newExercises[exerciseIndex];
-        const restSeconds = exercise.restSeconds || 90;
-        const nextSetIdx = exercise.sets.findIndex((s, idx) => idx > setIndex && !s.completed);
-
-        setTimerExerciseName(exercise.exerciseName);
-        setTimerSetNumber(setIndex + 1);
-        setTimerNextSet(nextSetIdx >= 0 ? nextSetIdx + 1 : undefined);
-        setTimerSeconds(restSeconds);
-        setTimerTotal(restSeconds);
-        setTimerActive(true);
-        setTimerRunning(true);
-      }
-
-      await updateSet(sessionId, {
-        exerciseIndex,
-        setIndex,
-        reps: set.reps,
-        weight: set.weight,
-        completed: true,
-        durationSeconds,
-      });
-    },
-    [sessionId, exercises, updateSet, routine],
-  );
-
   const handleCompleteSession = useCallback(async () => {
     if (!sessionId || !routine) return;
     Alert.alert(
@@ -396,16 +422,13 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
           text: 'Finalizar',
           onPress: async () => {
             setIsSaving(true);
-            
-            // Update routine with new weights/reps
+            setIsRestRunning(false);
+
             const updatedDays: RoutineDay[] = routine.days.map((d) => {
               if (d.id !== currentDayId) return d;
-              
               const updatedExercises = d.exercises.map((ex) => {
                 const sessionExercise = exercises.find((se) => se.exerciseId === ex.exerciseId);
                 if (!sessionExercise) return ex;
-                
-                // Calculate averages from completed sets
                 const completedSets = sessionExercise.sets.filter((s) => s.completed);
                 if (completedSets.length === 0) return ex;
 
@@ -420,32 +443,49 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
 
                 const avgWeight = completedSets.reduce((sum, s) => sum + s.weight, 0) / completedSets.length;
                 const avgReps = completedSets.reduce((sum, s) => sum + s.reps, 0) / completedSets.length;
-
                 return {
                   ...ex,
                   targetSets: completedSets.length,
                   targetReps: Math.round(avgReps),
                 };
               });
-              
               return { ...d, exercises: updatedExercises };
             });
-            
-            await updateRoutine(routineId, {
-              days: updatedDays,
-            });
-            
+
+            await updateRoutine(routineId, { days: updatedDays });
             await completeSession(sessionId);
             sessionCompletedRef.current = true;
             setIsSaving(false);
-            // Cancel timer if active
-            handleCancelTimer();
             navigation.goBack();
           },
         },
       ],
     );
   }, [sessionId, routine, currentDayId, exercises, completeSession, updateRoutine, routineId, navigation]);
+
+  const handleCancelRest = useCallback(() => {
+    setIsRestRunning(false);
+    const currentEx = exercises[currentExerciseIndex];
+    if (!currentEx) {
+      setFooterMode('finish');
+      return;
+    }
+
+    const nextSetIdx = currentEx.sets.findIndex((s) => !s.completed);
+    if (nextSetIdx >= 0) {
+      setFooterMode('start_set');
+    } else {
+      const hasNextEx = currentExerciseIndex < exercises.length - 1;
+      setFooterMode(hasNextEx ? 'next_exercise' : 'finish');
+    }
+  }, [exercises, currentExerciseIndex]);
+
+  const handleNextExercise = useCallback(() => {
+    setCurrentExerciseIndex((prev) => prev + 1);
+    setExerciseTimerSeconds(0);
+    setCurrentSetInProgress(false);
+    setFooterMode('start_set');
+  }, []);
 
   if (!routine || !day) {
     return (
@@ -455,11 +495,23 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
     );
   }
 
+  const formatTime = (totalSeconds: number) => {
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const getActiveSetText = () => {
+    if (!currentExercise || activeSetIndex < 0) return '';
+    return `${activeSetIndex + 1}/${currentExercise.sets.length}`;
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerInfo}>
           <Text style={styles.routineName}>{routine.name}</Text>
@@ -470,6 +522,7 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
         )}
       </View>
 
+      {/* Day tabs */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -477,16 +530,16 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
         contentContainerStyle={styles.dayTabsContent}
       >
         {routine.days.map((d) => {
-          const isDayCompleted = completedDayIds.has(d.id);
+          const isCompleted = completedDayIds.has(d.id);
           const isActive = d.id === currentDayId;
           return (
             <TouchableOpacity
               key={d.id}
               style={[
                 styles.dayTab,
-                isActive && isDayCompleted && styles.dayTabActiveCompleted,
-                isActive && !isDayCompleted && styles.dayTabActive,
-                !isActive && isDayCompleted && styles.dayTabCompleted,
+                isActive && isCompleted && styles.dayTabActiveCompleted,
+                isActive && !isCompleted && styles.dayTabActive,
+                !isActive && isCompleted && styles.dayTabCompleted,
               ]}
               onPress={() => {
                 if (d.id === currentDayId) return;
@@ -497,17 +550,17 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
               <Text
                 style={[
                   styles.dayTabText,
-                  isActive && isDayCompleted && styles.dayTabTextActiveCompleted,
-                  isActive && !isDayCompleted && styles.dayTabTextActive,
-                  !isActive && isDayCompleted && styles.dayTabTextCompleted,
+                  isActive && isCompleted && styles.dayTabTextActiveCompleted,
+                  isActive && !isCompleted && styles.dayTabTextActive,
+                  !isActive && isCompleted && styles.dayTabTextCompleted,
                 ]}
               >
                 {d.name}
               </Text>
-              {isDayCompleted && (
+              {isCompleted && (
                 <Text style={[
                   styles.dayTabCheckmark,
-                  isActive && isDayCompleted && styles.dayTabTextActiveCompleted
+                  isActive && isCompleted && styles.dayTabTextActiveCompleted
                 ]}>
                   ✓
                 </Text>
@@ -525,9 +578,7 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
         <>
           {isDayCompleted && completedSession && (
             <View style={styles.completedBanner}>
-              <Text style={styles.completedBannerText}>
-                Día completado
-              </Text>
+              <Text style={styles.completedBannerText}>Día completado</Text>
               <Text style={styles.completedBannerSubtext}>
                 Duración: {(() => {
                   const mins = Math.floor((completedSession.totalDurationSeconds || 0) / 60);
@@ -538,129 +589,309 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
             </View>
           )}
 
-          <ScrollView style={styles.scrollContent}>
-            {exercises.map((exercise, exIndex) => (
-              <View key={exercise.exerciseId} style={styles.exerciseCard}>
-                <Text style={styles.exerciseName}>{exercise.exerciseName}</Text>
-                <Text style={styles.exerciseInfo}>
-                  {exercise.muscleGroup} • {exercise.equipment}
-                </Text>
-
-                <View style={styles.setsContainer}>
-                  {exercise.sets.map((set, setIndex) => (
-                    <View key={set.setNumber} style={styles.setRow}>
-                      <Text style={styles.setNumber}>Set {set.setNumber}</Text>
-
-                      {exercise.isTimeBased ? (
-                        <>
-                          <View style={styles.inputGroup}>
-                            <Text style={styles.inputLabel}>Peso (kg)</Text>
-                            <TextInput
-                              style={styles.setInput}
-                              value={String(set.weight)}
-                              onChangeText={(text) => {
-                                const val = parseFloat(text) || 0;
-                                handleUpdateSet(exIndex, setIndex, 'weight', val);
-                              }}
-                              keyboardType="numeric"
-                              placeholder="0"
-                              editable={!!sessionId && !isDayCompleted}
-                            />
-                          </View>
-
-                          {sessionId && !isDayCompleted ? (
-                            <ExerciseTimer
-                              onComplete={(duration) => handleTimerComplete(exIndex, setIndex, duration)}
-                              targetDuration={exercise.targetDurationSeconds}
-                            />
-                          ) : (
-                            <View style={styles.timerPlaceholder}>
-                              <Text style={styles.timerPlaceholderText}>
-                                {set.durationSeconds
-                                  ? `${Math.floor(set.durationSeconds / 60).toString().padStart(2, '0')}:${(set.durationSeconds % 60).toString().padStart(2, '0')}`
-                                  : '--:--'}
-                              </Text>
-                            </View>
-                          )}
-                        </>
-                      ) : (
-                        <>
-                          <View style={styles.inputGroup}>
-                            <Text style={styles.inputLabel}>Peso (kg)</Text>
-                            <TextInput
-                              style={styles.setInput}
-                              value={String(set.weight)}
-                              onChangeText={(text) => {
-                                const val = parseFloat(text) || 0;
-                                handleUpdateSet(exIndex, setIndex, 'weight', val);
-                              }}
-                              keyboardType="numeric"
-                              placeholder="0"
-                              editable={!!sessionId && !isDayCompleted}
-                            />
-                          </View>
-
-                          <View style={styles.inputGroup}>
-                            <Text style={styles.inputLabel}>Reps</Text>
-                            <TextInput
-                              style={styles.setInput}
-                              value={String(set.reps)}
-                              onChangeText={(text) => {
-                                const val = parseInt(text, 10) || 0;
-                                handleUpdateSet(exIndex, setIndex, 'reps', val);
-                              }}
-                              keyboardType="numeric"
-                              placeholder="0"
-                              editable={!!sessionId && !isDayCompleted}
-                            />
-                          </View>
-
-                          {sessionId && !isDayCompleted && (
-                            <TouchableOpacity
-                              style={[
-                                styles.checkButton,
-                                set.completed && styles.checkButtonActive,
-                                (timerActive && timerRunning) && styles.checkButtonDisabled
-                              ]}
-                              onPress={() => handleToggleSet(exIndex, setIndex)}
-                              disabled={timerActive && timerRunning}
-                              activeOpacity={0.8}
-                            >
-                              <Text style={styles.checkButtonText}>
-                                {set.completed ? '✓' : ''}
-                              </Text>
-                            </TouchableOpacity>
-                          )}
-                        </>
-                      )}
+          {/* Main content */}
+          <ScrollView style={styles.scrollContent} contentContainerStyle={styles.scrollContentInner}>
+            {isDayCompleted ? (
+              // Show all exercises when completed
+              <>
+                {exercises.map((ex, exIdx) => (
+                  <View key={ex.exerciseId} style={styles.completedExerciseCard}>
+                    <View style={styles.exerciseHeader}>
+                      <View style={styles.exerciseHeaderInfo}>
+                        <Text style={styles.exerciseName}>{ex.exerciseName}</Text>
+                        <Text style={styles.exerciseMeta}>
+                          {ex.muscleGroup} • {ex.equipment}
+                        </Text>
+                      </View>
                     </View>
-                  ))}
-                </View>
-              </View>
-            ))}
+
+                    <View style={styles.timelineContainer}>
+                      {ex.sets.map((set, setIdx) => {
+                        const isCompleted = set.completed;
+                        const isLast = setIdx === ex.sets.length - 1;
+
+                        return (
+                          <View key={set.setNumber} style={styles.timelineRow}>
+                            <View style={styles.timelineLeft}>
+                              <View style={[
+                                styles.timelineDot,
+                                isCompleted && styles.timelineDotCompleted,
+                              ]}>
+                                <Text style={[
+                                  styles.timelineDotText,
+                                  isCompleted && styles.timelineDotTextCompleted,
+                                ]}>
+                                  {isCompleted ? '✓' : set.setNumber}
+                                </Text>
+                              </View>
+                              {!isLast && (
+                                <View style={[
+                                  styles.timelineLine,
+                                  isCompleted && styles.timelineLineCompleted,
+                                ]} />
+                              )}
+                            </View>
+
+                            <View style={[
+                              styles.setCard,
+                              isCompleted && styles.setCardCompleted,
+                            ]}>
+                              <View style={styles.setCardContent}>
+                                {ex.isTimeBased ? (
+                                  <Text style={styles.setCardValue}>
+                                    {set.durationSeconds && set.durationSeconds > 0
+                                      ? formatTime(set.durationSeconds)
+                                      : formatTime(ex.targetDurationSeconds || 0)}
+                                    <Text style={styles.setCardUnit}> tiempo</Text>
+                                  </Text>
+                                ) : (
+                                  <Text style={styles.setCardValue}>
+                                    {set.reps}
+                                    <Text style={styles.setCardUnit}> reps</Text>
+                                  </Text>
+                                )}
+                                <Text style={styles.setCardDivider}>•</Text>
+                                <Text style={styles.setCardValue}>
+                                  {set.weight}
+                                  <Text style={styles.setCardUnit}> kg</Text>
+                                </Text>
+                              </View>
+                            </View>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  </View>
+                ))}
+              </>
+            ) : (
+              // Show one exercise at a time when active
+              <>
+                {currentExercise ? (
+                  <>
+                    {/* Exercise header */}
+                    <View style={styles.exerciseHeader}>
+                      <View style={styles.exerciseImagePlaceholder}>
+                        <Text style={styles.exerciseImageText}>💪</Text>
+                      </View>
+                      <View style={styles.exerciseHeaderInfo}>
+                        <Text style={styles.exerciseName}>{currentExercise.exerciseName}</Text>
+                        <Text style={styles.exerciseMeta}>
+                          {currentExercise.muscleGroup} • {currentExercise.equipment}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Sets timeline */}
+                    <View style={styles.timelineContainer}>
+                      {currentExercise.sets.map((set, setIdx) => {
+                        const isCompleted = set.completed;
+                        const isActive = setIdx === activeSetIndex;
+                        const isLast = setIdx === currentExercise.sets.length - 1;
+
+                        return (
+                          <View key={set.setNumber} style={styles.timelineRow}>
+                            {/* Timeline left */}
+                            <View style={styles.timelineLeft}>
+                              <View style={[
+                                styles.timelineDot,
+                                isCompleted && styles.timelineDotCompleted,
+                                isActive && !isCompleted && styles.timelineDotActive,
+                              ]}>
+                                <Text style={[
+                                  styles.timelineDotText,
+                                  isCompleted && styles.timelineDotTextCompleted,
+                                  isActive && !isCompleted && styles.timelineDotTextActive,
+                                ]}>
+                                  {isCompleted ? '✓' : set.setNumber}
+                                </Text>
+                              </View>
+                              {!isLast && (
+                                <View style={[
+                                  styles.timelineLine,
+                                  isCompleted && styles.timelineLineCompleted,
+                                ]} />
+                              )}
+                            </View>
+
+                            {/* Set card */}
+                            <View style={[
+                              styles.setCard,
+                              isCompleted && styles.setCardCompleted,
+                              isActive && !isCompleted && styles.setCardActive,
+                            ]}>
+                              <View style={styles.setCardContent}>
+                                {currentExercise.isTimeBased ? (
+                                  <Text style={styles.setCardValue}>
+                                    {set.durationSeconds && set.durationSeconds > 0
+                                      ? formatTime(set.durationSeconds)
+                                      : formatTime(currentExercise.targetDurationSeconds || 0)}
+                                    <Text style={styles.setCardUnit}> tiempo</Text>
+                                  </Text>
+                                ) : (
+                                  <Text style={styles.setCardValue}>
+                                    {set.reps}
+                                    <Text style={styles.setCardUnit}> reps</Text>
+                                  </Text>
+                                )}
+                                <Text style={styles.setCardDivider}>•</Text>
+                                <Text style={styles.setCardValue}>
+                                  {set.weight}
+                                  <Text style={styles.setCardUnit}> kg</Text>
+                                </Text>
+                              </View>
+
+                              {/* Inputs for active set */}
+                              {isActive && !isCompleted && !isDayCompleted && sessionId && (
+                                <View style={styles.setInputs}>
+                                  <View style={styles.inputGroup}>
+                                    <Text style={styles.inputLabel}>Peso (kg)</Text>
+                                    <TextInput
+                                      style={styles.setInput}
+                                      value={String(set.weight)}
+                                      onChangeText={(text) => {
+                                        const val = parseFloat(text) || 0;
+                                        handleUpdateSetValue(currentExerciseIndex, setIdx, 'weight', val);
+                                      }}
+                                      keyboardType="numeric"
+                                      placeholder="0"
+                                      placeholderTextColor="#888"
+                                      editable={!isDayCompleted}
+                                    />
+                                  </View>
+                                  {!currentExercise.isTimeBased && (
+                                    <View style={styles.inputGroup}>
+                                      <Text style={styles.inputLabel}>Reps</Text>
+                                      <TextInput
+                                        style={styles.setInput}
+                                        value={String(set.reps)}
+                                        onChangeText={(text) => {
+                                          const val = parseInt(text, 10) || 0;
+                                          handleUpdateSetValue(currentExerciseIndex, setIdx, 'reps', val);
+                                        }}
+                                        keyboardType="numeric"
+                                        placeholder="0"
+                                        placeholderTextColor="#888"
+                                        editable={!isDayCompleted}
+                                      />
+                                    </View>
+                                  )}
+                                </View>
+                              )}
+                            </View>
+                          </View>
+                        );
+                      })}
+                    </View>
+
+                    {/* Next exercise card */}
+                    {nextExercise && footerMode !== 'finish' && (
+                      <View style={styles.nextExerciseSection}>
+                        <Text style={styles.nextExerciseLabel}>Siguiente ejercicio</Text>
+                        <View style={styles.nextExerciseCard}>
+                          <View style={styles.nextExerciseImagePlaceholder}>
+                            <Text style={styles.nextExerciseImageText}>💪</Text>
+                          </View>
+                          <View style={styles.nextExerciseInfo}>
+                            <Text style={styles.nextExerciseName}>{nextExercise.exerciseName}</Text>
+                            <Text style={styles.nextExerciseMeta}>
+                              {nextExercise.sets.length} series
+                              {nextExercise.isTimeBased
+                                ? ` • ${formatTime(nextExercise.targetDurationSeconds || 0)}`
+                                : ` • ${nextExercise.targetReps} reps`}
+                              {` • ${nextExercise.targetReps} kg`}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    )}
+                  </>
+                ) : (
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyStateText}>No hay ejercicios para este día</Text>
+                  </View>
+                )}
+              </>
+            )}
           </ScrollView>
 
+          {/* Footer */}
           {!isDayCompleted && (
             <View style={styles.footer}>
-              {!sessionId ? (
+              {footerMode === 'idle' && (
                 <TouchableOpacity
-                  style={[styles.startButton, isSaving && styles.buttonDisabled]}
+                  style={[styles.actionButton, styles.actionButtonStart, isSaving && styles.buttonDisabled]}
                   onPress={handleStartSession}
                   disabled={isSaving}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.startButtonText}>
+                  <Text style={styles.actionButtonText}>
                     {isSaving ? 'Iniciando...' : 'Iniciar entrenamiento'}
                   </Text>
                 </TouchableOpacity>
-              ) : (
+              )}
+
+              {footerMode === 'start_set' && (
                 <TouchableOpacity
-                  style={[styles.completeButton, isSaving && styles.buttonDisabled]}
+                  style={[styles.actionButton, styles.actionButtonStart]}
+                  onPress={handleStartSet}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.actionButtonText}>Iniciar serie {getActiveSetText()}</Text>
+                </TouchableOpacity>
+              )}
+
+              {footerMode === 'end_set' && (
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.actionButtonEnd]}
+                  onPress={handleEndSet}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.actionButtonText}>Terminar serie {getActiveSetText()}</Text>
+                  {currentExercise?.isTimeBased && (
+                    <Text style={styles.actionButtonSubtext}>
+                      {formatTime(exerciseTimerSeconds)}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              )}
+
+              {footerMode === 'rest' && (
+                <View>
+                  <Text style={styles.restTitle}>Descanso</Text>
+                  <Text style={styles.restTimerText}>{formatTime(restTimerSeconds)}</Text>
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.actionButtonRest]}
+                    onPress={handleCancelRest}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.actionButtonText}>Detener</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.cancelHint}>Tocar para detener el timer</Text>
+                </View>
+              )}
+
+              {footerMode === 'next_exercise' && (
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.actionButtonNext]}
+                  onPress={handleNextExercise}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.actionButtonText}>Siguiente ejercicio</Text>
+                  <Text style={styles.actionButtonSubtext}>
+                    {nextExercise?.exerciseName}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {footerMode === 'finish' && (
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.actionButtonFinish]}
                   onPress={handleCompleteSession}
                   disabled={isSaving}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.completeButtonText}>
+                  <Text style={styles.actionButtonText}>
                     {isSaving ? 'Finalizando...' : 'Finalizar entrenamiento'}
                   </Text>
                 </TouchableOpacity>
@@ -669,20 +900,6 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
           )}
         </>
       )}
-
-      <RestTimer
-        isActive={timerActive}
-        isRunning={timerRunning}
-        seconds={timerSeconds}
-        totalSeconds={timerTotal}
-        exerciseName={timerExerciseName}
-        setNumber={timerSetNumber}
-        nextSetNumber={timerNextSet}
-        onPause={handlePauseTimer}
-        onResume={handleResumeTimer}
-        onCancel={handleCancelTimer}
-        onAddTime={handleAddTime}
-      />
     </KeyboardAvoidingView>
   );
 }
@@ -775,9 +992,12 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flex: 1,
-    padding: 16,
   },
-  exerciseCard: {
+  scrollContentInner: {
+    padding: 16,
+    paddingBottom: 24,
+  },
+  completedExerciseCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
@@ -785,33 +1005,132 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e8e8e8',
   },
+  exerciseHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 24,
+  },
+  exerciseImagePlaceholder: {
+    width: 80,
+    height: 80,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#e8e8e8',
+  },
+  exerciseImageText: {
+    fontSize: 32,
+  },
+  exerciseHeaderInfo: {
+    flex: 1,
+  },
   exerciseName: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: '700',
     color: '#1a1a1a',
     marginBottom: 4,
   },
-  exerciseInfo: {
+  exerciseMeta: {
     fontSize: 14,
     color: '#888',
-    marginBottom: 16,
   },
-  setsContainer: {
-    gap: 12,
+  timelineContainer: {
+    marginBottom: 0,
   },
-  setRow: {
+  timelineRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  timelineLeft: {
+    width: 40,
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  timelineDot: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#f5f5f5',
+    borderWidth: 2,
+    borderColor: '#e8e8e8',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  timelineDotActive: {
+    borderColor: '#2f95dc',
+    backgroundColor: '#e3f2fd',
+  },
+  timelineDotCompleted: {
+    borderColor: '#4caf50',
+    backgroundColor: '#f0f9f0',
+  },
+  timelineDotText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#666',
+  },
+  timelineDotTextActive: {
+    color: '#2f95dc',
+  },
+  timelineDotTextCompleted: {
+    color: '#4caf50',
+  },
+  timelineLine: {
+    width: 2,
+    flex: 1,
+    backgroundColor: '#e8e8e8',
+    minHeight: 40,
+  },
+  timelineLineCompleted: {
+    backgroundColor: '#4caf50',
+  },
+  setCard: {
+    flex: 1,
+    backgroundColor: '#fafafa',
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e8e8e8',
+  },
+  setCardActive: {
+    borderColor: '#2f95dc',
+    backgroundColor: '#e3f2fd',
+  },
+  setCardCompleted: {
+    borderColor: '#4caf50',
+    backgroundColor: '#f0f9f0',
+  },
+  setCardContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#fafafa',
-    borderRadius: 8,
-    padding: 12,
+    gap: 8,
+    marginBottom: 8,
   },
-  setNumber: {
+  setCardValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    fontVariant: ['tabular-nums'],
+  },
+  setCardUnit: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-    width: 50,
+    fontWeight: '500',
+    color: '#888',
+  },
+  setCardDivider: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#888',
+  },
+  setInputs: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 4,
   },
   inputGroup: {
     flex: 1,
@@ -826,83 +1145,130 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
     color: '#1a1a1a',
   },
-  checkButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 2,
-    borderColor: '#ddd',
+  nextExerciseSection: {
+    marginTop: 8,
+  },
+  nextExerciseLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#888',
+    marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  nextExerciseCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e8e8e8',
+  },
+  nextExerciseImagePlaceholder: {
+    width: 56,
+    height: 56,
+    borderRadius: 10,
+    backgroundColor: '#f5f5f5',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff',
   },
-  checkButtonActive: {
-    backgroundColor: '#4caf50',
-    borderColor: '#4caf50',
+  nextExerciseImageText: {
+    fontSize: 24,
   },
-  checkButtonDisabled: {
-    opacity: 0.4,
-    backgroundColor: '#e0e0e0',
-    borderColor: '#bdbdbd',
+  nextExerciseInfo: {
+    flex: 1,
   },
-  checkButtonText: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#fff',
+  nextExerciseName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    marginBottom: 2,
   },
-  timerPlaceholder: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 2,
-    borderColor: '#ddd',
+  nextExerciseMeta: {
+    fontSize: 13,
+    color: '#888',
+  },
+  emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff',
+    paddingVertical: 60,
   },
-  timerPlaceholderText: {
-    fontSize: 11,
-    fontWeight: '700',
+  emptyStateText: {
+    fontSize: 16,
     color: '#888',
   },
   footer: {
     padding: 16,
-    paddingBottom: 24,
+    paddingBottom: Platform.OS === 'ios' ? 32 : 24,
     backgroundColor: '#fff',
     borderTopWidth: 1,
     borderTopColor: '#eee',
   },
-  startButton: {
-    paddingVertical: 14,
+  actionButton: {
+    paddingVertical: 16,
     backgroundColor: '#2f95dc',
-    borderRadius: 10,
+    borderRadius: 14,
     alignItems: 'center',
   },
-  completeButton: {
-    paddingVertical: 14,
+  actionButtonStart: {
+    backgroundColor: '#2f95dc',
+  },
+  actionButtonEnd: {
+    backgroundColor: '#ff9500',
+  },
+  actionButtonRest: {
+    backgroundColor: '#ff6b35',
+  },
+  actionButtonNext: {
+    backgroundColor: '#2f95dc',
+  },
+  actionButtonFinish: {
     backgroundColor: '#4caf50',
-    borderRadius: 10,
-    alignItems: 'center',
   },
   buttonDisabled: {
     opacity: 0.6,
   },
-  startButtonText: {
-    fontSize: 16,
+  actionButtonText: {
+    fontSize: 18,
     fontWeight: '700',
     color: '#fff',
   },
-  completeButtonText: {
-    fontSize: 16,
+  actionButtonSubtext: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#ffffff90',
+    marginTop: 2,
+  },
+  restTitle: {
+    fontSize: 18,
     fontWeight: '700',
-    color: '#fff',
+    color: '#1a1a1a',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  restTimerText: {
+    fontSize: 48,
+    fontWeight: '200',
+    color: '#1a1a1a',
+    textAlign: 'center',
+    marginBottom: 16,
+    fontVariant: ['tabular-nums'],
+  },
+  cancelHint: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#888',
+    textAlign: 'center',
+    marginTop: 8,
   },
   completedBanner: {
     backgroundColor: '#4caf50',

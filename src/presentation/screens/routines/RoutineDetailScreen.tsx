@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import type { RoutineScreenProps } from '../../navigation/types';
 import { useRoutines } from '../../hooks/useRoutines';
@@ -46,7 +47,7 @@ export function RoutineDetailScreen({
 }: RoutineScreenProps<'RoutineDetail'>) {
   const { routineId } = route.params;
   const { routines, deleteRoutine, duplicateRoutine, clearError } = useRoutines();
-  const { exercises: catalogExercises } = useExercises();
+  const { exercises: catalogExercises, isLoading: isLoadingExercises } = useExercises();
 
   const routine = useMemo(
     () => routines.find((r) => r.id === routineId) ?? null,
@@ -103,6 +104,15 @@ export function RoutineDetailScreen({
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Text style={styles.backButtonText}>Volver</Text>
         </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (isLoadingExercises) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color="#2f95dc" />
+        <Text style={styles.emptyText}>Cargando ejercicios...</Text>
       </View>
     );
   }
