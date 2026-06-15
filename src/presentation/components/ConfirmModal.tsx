@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
 
 interface ConfirmModalButton {
   text: string;
@@ -16,8 +17,9 @@ interface ConfirmModalProps {
 }
 
 export function ConfirmModal({ visible, title, message, buttons, onClose }: ConfirmModalProps) {
+  const { theme } = useTheme();
   const isColumnLayout = buttons.length > 2;
-  
+
   return (
     <Modal
       visible={visible}
@@ -26,9 +28,9 @@ export function ConfirmModal({ visible, title, message, buttons, onClose }: Conf
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <View style={styles.content}>
-          <Text style={styles.title}>{title}</Text>
-          {message && <Text style={styles.message}>{message}</Text>}
+        <View style={[styles.content, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+          <Text style={[styles.title, { color: theme.colors.text }]}>{title}</Text>
+          {message && <Text style={[styles.message, { color: theme.colors.textSecondary }]}>{message}</Text>}
           <View style={[styles.buttons, isColumnLayout && styles.buttonsColumn]}>
             {buttons.map((button, index) => (
               <TouchableOpacity
@@ -36,9 +38,9 @@ export function ConfirmModal({ visible, title, message, buttons, onClose }: Conf
                 style={[
                   styles.button,
                   isColumnLayout && styles.buttonColumn,
-                  button.style === 'cancel' && styles.buttonCancel,
-                  button.style === 'destructive' && styles.buttonDestructive,
-                  button.style === 'default' && styles.buttonDefault,
+                  button.style === 'cancel' && [styles.buttonCancel, { backgroundColor: theme.colors.surfaceElevated, borderColor: theme.colors.border }],
+                  button.style === 'destructive' && [styles.buttonDestructive, { backgroundColor: theme.colors.error }],
+                  button.style === 'default' && [styles.buttonDefault, { backgroundColor: theme.colors.primary }],
                 ]}
                 onPress={button.onPress}
                 activeOpacity={0.8}
@@ -46,7 +48,7 @@ export function ConfirmModal({ visible, title, message, buttons, onClose }: Conf
                 <Text
                   style={[
                     styles.buttonText,
-                    button.style === 'cancel' && styles.buttonTextCancel,
+                    button.style === 'cancel' && [styles.buttonTextCancel, { color: theme.colors.textSecondary }],
                     button.style === 'destructive' && styles.buttonTextDestructive,
                     button.style === 'default' && styles.buttonTextDefault,
                   ]}
@@ -65,29 +67,35 @@ export function ConfirmModal({ visible, title, message, buttons, onClose }: Conf
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   content: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 24,
-    width: '80%',
+    width: '85%',
     maxWidth: 400,
+    borderWidth: 1,
+    // iOS shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    // Android shadow
+    elevation: 8,
   },
   title: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1a1a1a',
     marginBottom: 12,
     textAlign: 'center',
   },
   message: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: 15,
     textAlign: 'center',
     marginBottom: 24,
+    lineHeight: 22,
   },
   buttons: {
     flexDirection: 'row',
@@ -99,7 +107,7 @@ const styles = StyleSheet.create({
   button: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 10,
+    borderRadius: 12,
     alignItems: 'center',
   },
   buttonColumn: {
@@ -107,15 +115,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   buttonDefault: {
-    backgroundColor: '#4caf50',
+    // backgroundColor set dynamically
   },
   buttonCancel: {
-    backgroundColor: '#f5f5f5',
-    borderWidth: 1,
-    borderColor: '#ddd',
+    borderWidth: 1.5,
   },
   buttonDestructive: {
-    backgroundColor: '#f44336',
+    // backgroundColor set dynamically
   },
   buttonText: {
     fontSize: 16,
@@ -125,7 +131,7 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   buttonTextCancel: {
-    color: '#666',
+    // color set dynamically
   },
   buttonTextDestructive: {
     color: '#fff',
