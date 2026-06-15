@@ -2,15 +2,16 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   ScrollView,
 } from 'react-native';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme, ThemeMode } from '../../context/ThemeContext';
 import { ConfirmModal } from '../../components/ConfirmModal';
+import { Card } from '../../components/Card';
+import { Button } from '../../components/Button';
+import { Input } from '../../components/Input';
 
 export function ProfileScreen() {
   const { user, logout, updateDisplayName, isLoading, clearError } = useAuth();
@@ -63,7 +64,7 @@ export function ProfileScreen() {
       <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Mi Perfil</Text>
 
       {/* Appearance Section */}
-      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+      <Card style={{ gap: 6 }}>
         <Text style={[styles.label, { color: theme.colors.textMuted }]}>Apariencia</Text>
         <View style={styles.themeOptions}>
           {themeOptions.map((option) => (
@@ -91,83 +92,68 @@ export function ProfileScreen() {
             </TouchableOpacity>
           ))}
         </View>
-      </View>
+      </Card>
 
-      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+      <Card style={{ gap: 6 }}>
         <Text style={[styles.label, { color: theme.colors.textMuted }]}>Email</Text>
         <Text style={[styles.value, { color: theme.colors.text }]}>{user?.email ?? '-'}</Text>
-      </View>
+      </Card>
 
-      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+      <Card style={{ gap: 6 }}>
         <Text style={[styles.label, { color: theme.colors.textMuted }]}>Nombre</Text>
         {editingName ? (
           <View style={styles.editRow}>
-            <TextInput
-              style={[
-                styles.nameInput,
-                { 
-                  borderColor: theme.colors.border,
-                  backgroundColor: theme.colors.surfaceElevated,
-                  color: theme.colors.text,
-                },
-              ]}
+            <Input
+              containerStyle={{ marginBottom: 0, flex: 1 }}
               value={newName}
               onChangeText={setNewName}
               autoCapitalize="words"
               maxLength={50}
               editable={!isLoading}
-              placeholderTextColor={theme.colors.textMuted}
             />
-            <TouchableOpacity
-              style={[styles.smallButton, { backgroundColor: theme.colors.primary }, isLoading && styles.smallButtonDisabled]}
+            <Button
+              title="Guardar"
               onPress={handleSaveName}
               disabled={isLoading}
-            >
-              {isLoading ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Text style={styles.smallButtonText}>Guardar</Text>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.smallButtonSecondary, { backgroundColor: theme.colors.surfaceElevated }, isLoading && styles.smallButtonDisabled]}
+              loading={isLoading}
+              size="small"
+            />
+            <Button
+              title="Cancelar"
               onPress={handleCancelEdit}
               disabled={isLoading}
-            >
-              <Text style={[styles.smallButtonSecondaryText, { color: theme.colors.textSecondary }]}>Cancelar</Text>
-            </TouchableOpacity>
+              variant="secondary"
+              size="small"
+            />
           </View>
         ) : (
           <View style={styles.displayRow}>
             <Text style={[styles.value, { color: theme.colors.text }]}>
               {user?.displayName ?? 'Sin nombre'}
             </Text>
-            <TouchableOpacity
-              style={[styles.editButton, { backgroundColor: theme.colors.primaryLight }]}
+            <Button
+              title="Editar"
               onPress={() => {
                 setNewName(user?.displayName ?? '');
                 setEditingName(true);
               }}
-            >
-              <Text style={[styles.editButtonText, { color: theme.colors.primary }]}>Editar</Text>
-            </TouchableOpacity>
+              variant="secondary"
+              size="small"
+            />
           </View>
         )}
-      </View>
+      </Card>
 
-      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+      <Card style={{ gap: 6 }}>
         <Text style={[styles.label, { color: theme.colors.textMuted }]}>Miembro desde</Text>
         <Text style={[styles.value, { color: theme.colors.text }]}>{memberSince}</Text>
-      </View>
+      </Card>
 
-      <TouchableOpacity
-        style={[styles.signOutButton, { backgroundColor: theme.colors.error }, isLoading && styles.buttonDisabled]}
+      <Button
+        title="Cerrar sesión"
         onPress={handleSignOut}
-        disabled={isLoading}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.signOutButtonText}>Cerrar sesión</Text>
-      </TouchableOpacity>
+        variant="danger"
+      />
 
       <ConfirmModal
         visible={showSignOutModal}
@@ -196,12 +182,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 8,
   },
-  card: {
-    borderRadius: 12,
-    padding: 16,
-    gap: 6,
-    borderWidth: 1,
-  },
   label: {
     fontSize: 12,
     textTransform: 'uppercase',
@@ -219,60 +199,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-  },
-  nameInput: {
-    flex: 1,
-    height: 40,
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    fontSize: 16,
-  },
-  editButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  editButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  smallButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  smallButtonDisabled: {
-    opacity: 0.6,
-  },
-  smallButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  smallButtonSecondary: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  smallButtonSecondaryText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  signOutButton: {
-    height: 52,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  signOutButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
   },
   themeOptions: {
     flexDirection: 'row',

@@ -9,6 +9,7 @@ import {
 import type { TrainScreenProps } from '../../navigation/types';
 import { useRoutines } from '../../hooks/useRoutines';
 import { useTheme } from '../../context/ThemeContext';
+import { Card } from '../../components/Card';
 
 export function TrainLobbyScreen({
   navigation,
@@ -45,17 +46,18 @@ export function TrainLobbyScreen({
       {routines.map((routine) => (
         <TouchableOpacity
           key={routine.id}
-          style={[styles.card, { backgroundColor: theme.colors.surface, shadowColor: theme.colors.shadow }]}
           onPress={() => navigation.navigate('DaySelection', { routineId: routine.id })}
           activeOpacity={0.8}
         >
-          <Text style={[styles.cardTitle, { color: theme.colors.text }]}>{routine.name}</Text>
-          {routine.description ? (
-            <Text style={[styles.cardDescription, { color: theme.colors.textSecondary }]}>{routine.description}</Text>
-          ) : null}
-          <Text style={[styles.cardMeta, { color: theme.colors.textMuted }]}>
-            {routine.days.length} {routine.days.length === 1 ? 'dia' : 'dias'}
-          </Text>
+          <Card elevated>
+            <Text style={[styles.cardTitle, { color: theme.colors.text }]}>{routine.name}</Text>
+            {routine.description ? (
+              <Text style={[styles.cardDescription, { color: theme.colors.textSecondary }]}>{routine.description}</Text>
+            ) : null}
+            <Text style={[styles.cardMeta, { color: theme.colors.textMuted }]}>
+              {routine.days.length} {routine.days.length === 1 ? 'dia' : 'dias'}
+            </Text>
+          </Card>
         </TouchableOpacity>
       ))}
     </ScrollView>
@@ -90,15 +92,6 @@ const styles = StyleSheet.create({
   hintText: {
     fontSize: 14,
     textAlign: 'center',
-  },
-  card: {
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    elevation: 2,
   },
   cardTitle: {
     fontSize: 18,

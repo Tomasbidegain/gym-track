@@ -2,7 +2,6 @@ import React from 'react';
 import {
   View,
   Text,
-  TextInput,
   FlatList,
   TouchableOpacity,
   StyleSheet,
@@ -16,6 +15,8 @@ import { ExerciseCard } from '../../components/ExerciseCard';
 import type { MuscleGroup, Equipment } from '../../../domain';
 import { MUSCLE_GROUPS, EQUIPMENT_TYPES } from '../../../domain';
 import { useTheme } from '../../context/ThemeContext';
+import { Input } from '../../components/Input';
+import { Button } from '../../components/Button';
 
 const muscleGroupLabels: Record<string, string> = {
   chest: 'Pecho',
@@ -75,10 +76,8 @@ export function ExerciseListScreen({ navigation }: ExerciseScreenProps<'Exercise
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={[styles.searchContainer, { backgroundColor: theme.colors.surface }]}>
-        <TextInput
-          style={[styles.searchInput, { backgroundColor: theme.colors.surfaceElevated, borderColor: theme.colors.border, color: theme.colors.text }]}
+        <Input
           placeholder="Buscar ejercicio..."
-          placeholderTextColor={theme.colors.textMuted}
           value={searchQuery}
           onChangeText={(text) => {
             clearError();
@@ -86,6 +85,7 @@ export function ExerciseListScreen({ navigation }: ExerciseScreenProps<'Exercise
           }}
           autoCapitalize="none"
           autoCorrect={false}
+          containerStyle={{ marginBottom: 0 }}
         />
       </View>
 
@@ -146,9 +146,7 @@ export function ExerciseListScreen({ navigation }: ExerciseScreenProps<'Exercise
       {error ? (
         <View style={[styles.errorContainer, { backgroundColor: theme.colors.errorLight }]}>
           <Text style={[styles.errorText, { color: theme.colors.error }]}>{error}</Text>
-          <TouchableOpacity onPress={refresh} style={[styles.retryButton, { backgroundColor: theme.colors.primary }]}>
-            <Text style={[styles.retryButtonText, { color: theme.colors.surface }]}>Reintentar</Text>
-          </TouchableOpacity>
+          <Button title="Reintentar" onPress={refresh} variant="primary" size="small" />
         </View>
       ) : null}
 
@@ -185,9 +183,13 @@ export function ExerciseListScreen({ navigation }: ExerciseScreenProps<'Exercise
         />
       )}
 
-      <TouchableOpacity style={[styles.fab, { backgroundColor: theme.colors.primary }]} onPress={handleCreate} activeOpacity={0.8}>
-        <Text style={[styles.fabText, { color: theme.colors.surface }]}>+</Text>
-      </TouchableOpacity>
+      <Button
+        title="+"
+        onPress={handleCreate}
+        style={styles.fab}
+        textStyle={styles.fabText}
+        size="small"
+      />
     </View>
   );
 }
@@ -200,13 +202,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 8,
-  },
-  searchInput: {
-    height: 44,
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    fontSize: 15,
   },
   filtersContainer: {
     paddingHorizontal: 16,
@@ -256,16 +251,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
   },
-  retryButton: {
-    marginTop: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -288,8 +273,6 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,

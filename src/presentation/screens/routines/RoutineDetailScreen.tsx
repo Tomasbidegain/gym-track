@@ -14,6 +14,8 @@ import { isOrphaned } from '../../../domain';
 import type { Routine, RoutineExercise } from '../../../domain';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import { useTheme } from '../../context/ThemeContext';
+import { Card } from '../../components/Card';
+import { Button } from '../../components/Button';
 
 const muscleGroupLabels: Record<string, string> = {
   chest: 'Pecho',
@@ -96,9 +98,7 @@ export function RoutineDetailScreen({
     return (
       <View style={[styles.centerContainer, { backgroundColor: theme.colors.background }]}>
         <Text style={[styles.emptyText, { color: theme.colors.textMuted }]}>Rutina no encontrada</Text>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backButton, { backgroundColor: theme.colors.primary }]}>
-          <Text style={[styles.backButtonText, { color: theme.colors.surface }]}>Volver</Text>
-        </TouchableOpacity>
+        <Button title="Volver" onPress={() => navigation.goBack()} variant="primary" />
       </View>
     );
   }
@@ -177,16 +177,8 @@ export function RoutineDetailScreen({
       </ScrollView>
 
       <View style={[styles.actionsContainer, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.borderLight }]}>
-        <TouchableOpacity style={[styles.actionButton, { backgroundColor: theme.colors.primary }]} onPress={handleEdit}>
-          <Text style={[styles.actionButtonText, { color: theme.colors.surface }]}>Editar</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: theme.colors.errorLight, borderColor: theme.colors.error },
-          styles.deleteButton]}
-          onPress={handleDelete}
-        >
-          <Text style={[styles.actionButtonText, styles.deleteButtonText, { color: theme.colors.error }]}>Eliminar</Text>
-        </TouchableOpacity>
+        <Button title="Editar" onPress={handleEdit} variant="primary" />
+        <Button title="Eliminar" onPress={handleDelete} variant="danger" />
       </View>
 
       <ConfirmModal
@@ -212,7 +204,7 @@ function ExerciseCard({
 }) {
   const { theme } = useTheme();
   return (
-    <View style={[styles.exerciseCard, { backgroundColor: theme.colors.surface, shadowColor: theme.colors.shadow }]}>
+    <Card elevated style={styles.exerciseCard}>
       <View style={styles.exerciseHeader}>
         <Text style={[styles.exerciseName, { color: theme.colors.text }, orphaned && { color: theme.colors.textMuted }]}>
           {exercise.exerciseName}
@@ -233,7 +225,7 @@ function ExerciseCard({
         <Text style={[styles.detailText, { color: theme.colors.textSecondary }]}>Descanso: {formatRest(exercise.restSeconds)}</Text>
         {exercise.notes ? <Text style={[styles.notesText, { color: theme.colors.textMuted }]}>Nota: {exercise.notes}</Text> : null}
       </View>
-    </View>
+    </Card>
   );
 }
 
@@ -254,15 +246,6 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     marginBottom: 16,
-  },
-  backButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  backButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
   },
   title: {
     fontSize: 24,
@@ -315,13 +298,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   exerciseCard: {
-    borderRadius: 12,
-    padding: 14,
     marginBottom: 10,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    elevation: 2,
   },
   exerciseHeader: {
     flexDirection: 'row',
@@ -361,20 +338,5 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 24,
     borderTopWidth: 1,
-  },
-  actionButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  deleteButton: {
-    borderWidth: 1,
-  },
-  actionButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  deleteButtonText: {
   },
 });

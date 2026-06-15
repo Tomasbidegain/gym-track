@@ -12,6 +12,8 @@ import { useRoutines } from '../../hooks/useRoutines';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import type { Routine } from '../../../domain';
 import { useTheme } from '../../context/ThemeContext';
+import { Card } from '../../components/Card';
+import { Button } from '../../components/Button';
 
 const muscleGroupLabels: Record<string, string> = {
   chest: 'Pecho',
@@ -111,25 +113,27 @@ export function RoutineListScreen({ navigation }: RoutineScreenProps<'RoutineLis
           onPress={() => handleRoutinePress(item)}
           onLongPress={() => handleLongPress(item)}
           delayLongPress={400}
-          style={[styles.card, { backgroundColor: theme.colors.surface, shadowColor: theme.colors.shadow }]}
+          style={{ marginHorizontal: 16, marginVertical: 6 }}
         >
-          <Text style={[styles.name, { color: theme.colors.text }]}>{item.name}</Text>
-          <Text style={[styles.dayCount, { color: theme.colors.textMuted }]}>
-            {item.days.length} {item.days.length === 1 ? 'dia' : 'dias'}
-            {totalExercises > 0 && ` · ${totalExercises} ejercicios`}
-          </Text>
-          <View style={styles.badgesRow}>
-            {badges.map((group) => (
-              <View key={group} style={[styles.badge, { backgroundColor: theme.colors.primaryLight }]}>
-                <Text style={[styles.badgeText, { color: theme.colors.text }]}>
-                  {muscleGroupLabels[group] ?? group}
-                </Text>
-              </View>
-            ))}
-            {badges.length > 0 && totalExercises > badges.length && (
-              <Text style={[styles.moreBadge, { color: theme.colors.textMuted }]}>+{totalExercises - badges.length}</Text>
-            )}
-          </View>
+          <Card elevated>
+            <Text style={[styles.name, { color: theme.colors.text }]}>{item.name}</Text>
+            <Text style={[styles.dayCount, { color: theme.colors.textMuted }]}>
+              {item.days.length} {item.days.length === 1 ? 'dia' : 'dias'}
+              {totalExercises > 0 && ` · ${totalExercises} ejercicios`}
+            </Text>
+            <View style={styles.badgesRow}>
+              {badges.map((group) => (
+                <View key={group} style={[styles.badge, { backgroundColor: theme.colors.primaryLight }]}>
+                  <Text style={[styles.badgeText, { color: theme.colors.text }]}>
+                    {muscleGroupLabels[group] ?? group}
+                  </Text>
+                </View>
+              ))}
+              {badges.length > 0 && totalExercises > badges.length && (
+                <Text style={[styles.moreBadge, { color: theme.colors.textMuted }]}>+{totalExercises - badges.length}</Text>
+              )}
+            </View>
+          </Card>
         </TouchableOpacity>
       );
     },
@@ -156,9 +160,13 @@ export function RoutineListScreen({ navigation }: RoutineScreenProps<'RoutineLis
         }
       />
 
-      <TouchableOpacity style={[styles.fab, { backgroundColor: theme.colors.primary }]} onPress={handleCreate} activeOpacity={0.8}>
-        <Text style={[styles.fabText, { color: theme.colors.surface }]}>+</Text>
-      </TouchableOpacity>
+      <Button
+        title="+"
+        onPress={handleCreate}
+        style={styles.fab}
+        textStyle={styles.fabText}
+        size="small"
+      />
 
       <ConfirmModal
         visible={showActionModal}
@@ -193,16 +201,6 @@ const styles = StyleSheet.create({
   listContent: {
     paddingVertical: 8,
     paddingBottom: 80,
-  },
-  card: {
-    borderRadius: 12,
-    padding: 16,
-    marginHorizontal: 16,
-    marginVertical: 6,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    elevation: 2,
   },
   name: {
     fontSize: 16,
@@ -254,8 +252,6 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
