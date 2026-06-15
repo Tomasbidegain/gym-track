@@ -9,10 +9,12 @@ import {
   ScrollView,
 } from 'react-native';
 import { useAuth } from '../../hooks/useAuth';
+import { useTheme, ThemeMode } from '../../context/ThemeContext';
 import { ConfirmModal } from '../../components/ConfirmModal';
 
 export function ProfileScreen() {
   const { user, logout, updateDisplayName, isLoading, clearError } = useAuth();
+  const { theme, themeMode, setThemeMode } = useTheme();
   const [editingName, setEditingName] = useState(false);
   const [newName, setNewName] = useState(user?.displayName ?? '');
   const [showSignOutModal, setShowSignOutModal] = useState(false);
@@ -47,29 +49,77 @@ export function ProfileScreen() {
       })
     : '-';
 
-  return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.sectionTitle}>Mi Perfil</Text>
+  const themeOptions: { mode: ThemeMode; label: string; icon: string }[] = [
+    { mode: 'light', label: 'Claro', icon: '☀️' },
+    { mode: 'dark', label: 'Oscuro', icon: '🌙' },
+    { mode: 'system', label: 'Sistema', icon: '📱' },
+  ];
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Email</Text>
-        <Text style={styles.value}>{user?.email ?? '-'}</Text>
+  return (
+    <ScrollView 
+      style={[styles.container, { backgroundColor: theme.colors.background }]} 
+      contentContainerStyle={styles.content}
+    >
+      <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Mi Perfil</Text>
+
+      {/* Appearance Section */}
+      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+        <Text style={[styles.label, { color: theme.colors.textMuted }]}>Apariencia</Text>
+        <View style={styles.themeOptions}>
+          {themeOptions.map((option) => (
+            <TouchableOpacity
+              key={option.mode}
+              style={[
+                styles.themeOption,
+                { 
+                  backgroundColor: themeMode === option.mode ? theme.colors.primaryLight : theme.colors.surfaceElevated,
+                  borderColor: themeMode === option.mode ? theme.colors.primary : theme.colors.border,
+                },
+              ]}
+              onPress={() => setThemeMode(option.mode)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.themeIcon}>{option.icon}</Text>
+              <Text 
+                style={[
+                  styles.themeLabel, 
+                  { color: themeMode === option.mode ? theme.colors.primary : theme.colors.textSecondary },
+                ]}
+              >
+                {option.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Nombre</Text>
+      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+        <Text style={[styles.label, { color: theme.colors.textMuted }]}>Email</Text>
+        <Text style={[styles.value, { color: theme.colors.text }]}>{user?.email ?? '-'}</Text>
+      </View>
+
+      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+        <Text style={[styles.label, { color: theme.colors.textMuted }]}>Nombre</Text>
         {editingName ? (
           <View style={styles.editRow}>
             <TextInput
-              style={styles.nameInput}
+              style={[
+                styles.nameInput,
+                { 
+                  borderColor: theme.colors.border,
+                  backgroundColor: theme.colors.surfaceElevated,
+                  color: theme.colors.text,
+                },
+              ]}
               value={newName}
               onChangeText={setNewName}
               autoCapitalize="words"
               maxLength={50}
               editable={!isLoading}
+              placeholderTextColor={theme.colors.textMuted}
             />
             <TouchableOpacity
-              style={[styles.smallButton, isLoading && styles.smallButtonDisabled]}
+              style={[styles.smallButton, { backgroundColor: theme.colors.primary }, isLoading && styles.smallButtonDisabled]}
               onPress={handleSaveName}
               disabled={isLoading}
             >
@@ -80,38 +130,38 @@ export function ProfileScreen() {
               )}
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.smallButtonSecondary, isLoading && styles.smallButtonDisabled]}
+              style={[styles.smallButtonSecondary, { backgroundColor: theme.colors.surfaceElevated }, isLoading && styles.smallButtonDisabled]}
               onPress={handleCancelEdit}
               disabled={isLoading}
             >
-              <Text style={styles.smallButtonSecondaryText}>Cancelar</Text>
+              <Text style={[styles.smallButtonSecondaryText, { color: theme.colors.textSecondary }]}>Cancelar</Text>
             </TouchableOpacity>
           </View>
         ) : (
           <View style={styles.displayRow}>
-            <Text style={styles.value}>
+            <Text style={[styles.value, { color: theme.colors.text }]}>
               {user?.displayName ?? 'Sin nombre'}
             </Text>
             <TouchableOpacity
-              style={styles.editButton}
+              style={[styles.editButton, { backgroundColor: theme.colors.primaryLight }]}
               onPress={() => {
                 setNewName(user?.displayName ?? '');
                 setEditingName(true);
               }}
             >
-              <Text style={styles.editButtonText}>Editar</Text>
+              <Text style={[styles.editButtonText, { color: theme.colors.primary }]}>Editar</Text>
             </TouchableOpacity>
           </View>
         )}
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Miembro desde</Text>
-        <Text style={styles.value}>{memberSince}</Text>
+      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+        <Text style={[styles.label, { color: theme.colors.textMuted }]}>Miembro desde</Text>
+        <Text style={[styles.value, { color: theme.colors.text }]}>{memberSince}</Text>
       </View>
 
       <TouchableOpacity
-        style={[styles.signOutButton, isLoading && styles.buttonDisabled]}
+        style={[styles.signOutButton, { backgroundColor: theme.colors.error }, isLoading && styles.buttonDisabled]}
         onPress={handleSignOut}
         disabled={isLoading}
         activeOpacity={0.8}
@@ -136,7 +186,6 @@ export function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   content: {
     padding: 20,
@@ -146,23 +195,20 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     marginBottom: 8,
-    color: '#1a1a1a',
   },
   card: {
-    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
     gap: 6,
+    borderWidth: 1,
   },
   label: {
     fontSize: 12,
-    color: '#888',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   value: {
     fontSize: 16,
-    color: '#1a1a1a',
   },
   displayRow: {
     flexDirection: 'row',
@@ -178,27 +224,22 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 40,
     borderWidth: 1,
-    borderColor: '#ddd',
     borderRadius: 8,
     paddingHorizontal: 10,
     fontSize: 16,
-    backgroundColor: '#fafafa',
   },
   editButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: '#e3f2fd',
     borderRadius: 8,
   },
   editButtonText: {
-    color: '#2f95dc',
     fontSize: 14,
     fontWeight: '600',
   },
   smallButton: {
     paddingHorizontal: 14,
     paddingVertical: 8,
-    backgroundColor: '#2f95dc',
     borderRadius: 8,
   },
   smallButtonDisabled: {
@@ -212,17 +253,14 @@ const styles = StyleSheet.create({
   smallButtonSecondary: {
     paddingHorizontal: 14,
     paddingVertical: 8,
-    backgroundColor: '#eee',
     borderRadius: 8,
   },
   smallButtonSecondaryText: {
-    color: '#555',
     fontSize: 14,
     fontWeight: '600',
   },
   signOutButton: {
     height: 52,
-    backgroundColor: '#d32f2f',
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
@@ -234,6 +272,27 @@ const styles = StyleSheet.create({
   signOutButtonText: {
     color: '#fff',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  themeOptions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 8,
+  },
+  themeOption: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+    borderWidth: 2,
+    alignItems: 'center',
+    gap: 4,
+  },
+  themeIcon: {
+    fontSize: 20,
+  },
+  themeLabel: {
+    fontSize: 12,
     fontWeight: '600',
   },
 });

@@ -9,6 +9,7 @@ import {
 import type { ExerciseScreenProps } from '../../navigation/types';
 import { useExercises } from '../../hooks/useExercises';
 import { ConfirmModal } from '../../components/ConfirmModal';
+import { useTheme } from '../../context/ThemeContext';
 
 const muscleGroupLabels: Record<string, string> = {
   chest: 'Pecho',
@@ -38,6 +39,7 @@ export function ExerciseDetailScreen({
   navigation,
   route,
 }: ExerciseScreenProps<'ExerciseDetail'>) {
+  const { theme } = useTheme();
   const { exerciseId } = route.params;
   const { exercises, isLoading, deleteExercise } = useExercises();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -64,54 +66,54 @@ export function ExerciseDetailScreen({
 
   if (isLoading && !exercise) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.loadingText}>Cargando...</Text>
+      <View style={[styles.centerContainer, { backgroundColor: theme.colors.background }]}>
+        <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>Cargando...</Text>
       </View>
     );
   }
 
   if (!exercise) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.errorText}>No se encontró el ejercicio</Text>
+      <View style={[styles.centerContainer, { backgroundColor: theme.colors.background }]}>
+        <Text style={[styles.errorText, { color: theme.colors.error }]}>No se encontró el ejercicio</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.card}>
-        <Text style={styles.name}>{exercise.name}</Text>
+    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]} contentContainerStyle={styles.content}>
+      <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
+        <Text style={[styles.name, { color: theme.colors.text }]}>{exercise.name}</Text>
 
         {!exercise.isCustom ? (
-          <View style={styles.preloadedBadge}>
-            <Text style={styles.preloadedBadgeText}>Ejercicio pre-cargado</Text>
+          <View style={[styles.preloadedBadge, { backgroundColor: theme.colors.warningLight }]}>
+            <Text style={[styles.preloadedBadgeText, { color: theme.colors.warning }]}>Ejercicio pre-cargado</Text>
           </View>
         ) : null}
 
         <View style={styles.infoRow}>
-          <Text style={styles.label}>Grupo muscular</Text>
-          <Text style={styles.value}>
+          <Text style={[styles.label, { color: theme.colors.textMuted }]}>Grupo muscular</Text>
+          <Text style={[styles.value, { color: theme.colors.text }]}>
             {muscleGroupLabels[exercise.muscleGroup] ?? exercise.muscleGroup}
           </Text>
         </View>
 
         <View style={styles.infoRow}>
-          <Text style={styles.label}>Equipamiento</Text>
-          <Text style={styles.value}>
+          <Text style={[styles.label, { color: theme.colors.textMuted }]}>Equipamiento</Text>
+          <Text style={[styles.value, { color: theme.colors.text }]}>
             {equipmentLabels[exercise.equipment] ?? exercise.equipment}
           </Text>
         </View>
       </View>
 
       {exercise.isCustom ? (
-        <View style={styles.actionsCard}>
-          <TouchableOpacity style={styles.editButton} onPress={handleEdit} activeOpacity={0.8}>
-            <Text style={styles.editButtonText}>Editar ejercicio</Text>
+        <View style={[styles.actionsCard, { backgroundColor: theme.colors.surface }]}>
+          <TouchableOpacity style={[styles.editButton, { backgroundColor: theme.colors.primary }]} onPress={handleEdit} activeOpacity={0.8}>
+            <Text style={[styles.editButtonText, { color: theme.colors.surface }]}>Editar ejercicio</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.deleteButton} onPress={handleDelete} activeOpacity={0.8}>
-            <Text style={styles.deleteButtonText}>Eliminar ejercicio</Text>
+          <TouchableOpacity style={[styles.deleteButton, { backgroundColor: theme.colors.errorLight, borderColor: theme.colors.error }]} onPress={handleDelete} activeOpacity={0.8}>
+            <Text style={[styles.deleteButtonText, { color: theme.colors.error }]}>Eliminar ejercicio</Text>
           </TouchableOpacity>
         </View>
       ) : null}
@@ -133,7 +135,6 @@ export function ExerciseDetailScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   content: {
     padding: 20,
@@ -143,18 +144,14 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f5f5f5',
   },
   loadingText: {
     fontSize: 16,
-    color: '#666',
   },
   errorText: {
     fontSize: 16,
-    color: '#d32f2f',
   },
   card: {
-    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 20,
     gap: 14,
@@ -162,11 +159,9 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#1a1a1a',
   },
   preloadedBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: '#fff3e0',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
@@ -174,50 +169,41 @@ const styles = StyleSheet.create({
   preloadedBadgeText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#e65100',
   },
   infoRow: {
     gap: 4,
   },
   label: {
     fontSize: 12,
-    color: '#888',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   value: {
     fontSize: 16,
-    color: '#1a1a1a',
   },
   actionsCard: {
-    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
     gap: 12,
   },
   editButton: {
     height: 52,
-    backgroundColor: '#2f95dc',
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   editButtonText: {
-    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },
   deleteButton: {
     height: 52,
-    backgroundColor: '#ffebee',
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#ef9a9a',
   },
   deleteButtonText: {
-    color: '#d32f2f',
     fontSize: 16,
     fontWeight: '600',
   },

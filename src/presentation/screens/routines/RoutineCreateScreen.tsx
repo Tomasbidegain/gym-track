@@ -20,6 +20,7 @@ import type { RoutineDay, RoutineExercise } from '../../../domain';
 import type { Exercise } from '../../../domain';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
+import { useTheme } from '../../context/ThemeContext';
 
 let dayCounter = 0;
 function generateDayId(): string {
@@ -50,6 +51,7 @@ function createDefaultRoutineExercise(exercise: Exercise, order: number): Routin
 }
 
 export function RoutineCreateScreen({ navigation }: RoutineScreenProps<'RoutineCreate'>) {
+  const { theme } = useTheme();
   const { createRoutine, clearError, error: routineError } = useRoutines();
   const { exercises: catalogExercises } = useExercises();
   const picker = useExercisePicker();
@@ -339,40 +341,42 @@ export function RoutineCreateScreen({ navigation }: RoutineScreenProps<'RoutineC
   const renderStep1 = () => (
     <View style={styles.stepContainer}>
       <ScrollView contentContainerStyle={styles.step1Content}>
-        <Text style={styles.stepTitle}>Configuracion de la rutina</Text>
+        <Text style={[styles.stepTitle, { color: theme.colors.text }]}>Configuracion de la rutina</Text>
         
-        <Text style={styles.label}>Nombre</Text>
+        <Text style={[styles.label, { color: theme.colors.text }]}>Nombre</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, color: theme.colors.text }]}
           value={name}
           onChangeText={(text) => {
             setName(text);
             clearFormError();
           }}
           placeholder="Nombre de la rutina"
+          placeholderTextColor={theme.colors.textMuted}
           maxLength={100}
           autoCapitalize="sentences"
         />
 
-        <Text style={styles.label}>Descripcion (opcional)</Text>
+        <Text style={[styles.label, { color: theme.colors.text }]}>Descripcion (opcional)</Text>
         <TextInput
-          style={[styles.input, styles.textArea]}
+          style={[styles.input, styles.textArea, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, color: theme.colors.text }]}
           value={description}
           onChangeText={(text) => {
             setDescription(text);
             clearFormError();
           }}
           placeholder="Descripcion de la rutina"
+          placeholderTextColor={theme.colors.textMuted}
           multiline
           numberOfLines={3}
           maxLength={500}
           textAlignVertical="top"
         />
 
-        <Text style={styles.label}>Cantidad de dias</Text>
-        <View style={styles.dayCountInputWrapper}>
+        <Text style={[styles.label, { color: theme.colors.text }]}>Cantidad de dias</Text>
+        <View style={[styles.dayCountInputWrapper, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
           <TouchableOpacity
-            style={styles.dayCountButton}
+            style={[styles.dayCountButton, { backgroundColor: theme.colors.background }]}
             onPress={() => {
               const current = parseInt(dayCount, 10) || 1;
               if (current > 1) {
@@ -382,10 +386,10 @@ export function RoutineCreateScreen({ navigation }: RoutineScreenProps<'RoutineC
             }}
             activeOpacity={0.6}
           >
-            <Text style={styles.dayCountButtonText}>−</Text>
+            <Text style={[styles.dayCountButtonText, { color: theme.colors.primary }]}>−</Text>
           </TouchableOpacity>
           <TextInput
-            style={styles.dayCountInputField}
+            style={[styles.dayCountInputField, { color: theme.colors.text, borderColor: theme.colors.border }]}
             value={dayCount}
             onChangeText={(text) => {
               const val = text.replace(/[^0-9]/g, '');
@@ -400,12 +404,13 @@ export function RoutineCreateScreen({ navigation }: RoutineScreenProps<'RoutineC
               clearFormError();
             }}
             placeholder="1"
+            placeholderTextColor={theme.colors.textMuted}
             keyboardType="numeric"
             maxLength={1}
             textAlign="center"
           />
           <TouchableOpacity
-            style={styles.dayCountButton}
+            style={[styles.dayCountButton, { backgroundColor: theme.colors.background }]}
             onPress={() => {
               const current = parseInt(dayCount, 10) || 1;
               if (current < 7) {
@@ -415,17 +420,17 @@ export function RoutineCreateScreen({ navigation }: RoutineScreenProps<'RoutineC
             }}
             activeOpacity={0.6}
           >
-            <Text style={styles.dayCountButtonText}>+</Text>
+            <Text style={[styles.dayCountButtonText, { color: theme.colors.primary }]}>+</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
 
-      <View style={styles.stepFooter}>
-        <TouchableOpacity style={styles.cancelButton} onPress={handleCancel} activeOpacity={0.8}>
-          <Text style={styles.cancelButtonText}>Cancelar</Text>
+      <View style={[styles.stepFooter, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.borderLight }]}>
+        <TouchableOpacity style={[styles.cancelButton, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]} onPress={handleCancel} activeOpacity={0.8}>
+          <Text style={[styles.cancelButtonText, { color: theme.colors.textSecondary }]}>Cancelar</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.nextButton} onPress={handleNext} activeOpacity={0.8}>
-          <Text style={styles.nextButtonText}>Siguiente →</Text>
+        <TouchableOpacity style={[styles.nextButton, { backgroundColor: theme.colors.primary }]} onPress={handleNext} activeOpacity={0.8}>
+          <Text style={[styles.nextButtonText, { color: theme.colors.surface }]}>Siguiente →</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -435,12 +440,12 @@ export function RoutineCreateScreen({ navigation }: RoutineScreenProps<'RoutineC
   const renderStep2 = () => (
     <View style={styles.stepContainer}>
       <View style={styles.stepHeader}>
-        <Text style={styles.stepTitle}>Ejercicios por dia</Text>
-        <Text style={styles.stepSubtitle}>{name}</Text>
+        <Text style={[styles.stepTitle, { color: theme.colors.text }]}>Ejercicios por dia</Text>
+        <Text style={[styles.stepSubtitle, { color: theme.colors.textSecondary }]}>{name}</Text>
       </View>
 
       {/* Day Tabs */}
-      <View style={styles.dayTabsContainer}>
+      <View style={[styles.dayTabsContainer, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.borderLight }]}>
         <ScrollView 
           horizontal 
           showsHorizontalScrollIndicator={false}
@@ -451,14 +456,16 @@ export function RoutineCreateScreen({ navigation }: RoutineScreenProps<'RoutineC
               key={day.id}
               style={[
                 styles.dayTab,
-                index === activeDayIndex && styles.dayTabActive,
+                { backgroundColor: theme.colors.background, borderColor: theme.colors.borderLight },
+                index === activeDayIndex && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
               ]}
               onPress={() => setActiveDayIndex(index)}
               activeOpacity={0.8}
             >
               <Text style={[
                 styles.dayTabText,
-                index === activeDayIndex && styles.dayTabTextActive,
+                { color: theme.colors.textSecondary },
+                index === activeDayIndex && { color: theme.colors.surface },
               ]}>
                 {day.name}
               </Text>
@@ -468,27 +475,27 @@ export function RoutineCreateScreen({ navigation }: RoutineScreenProps<'RoutineC
                   onPress={() => removeDay(index)}
                   activeOpacity={0.6}
                 >
-                  <Text style={styles.dayTabRemoveText}>×</Text>
+                  <Text style={[styles.dayTabRemoveText, { color: theme.colors.textMuted }]}>×</Text>
                 </TouchableOpacity>
               )}
             </TouchableOpacity>
           ))}
-          <TouchableOpacity style={styles.dayTabAdd} onPress={addDay} activeOpacity={0.8}>
-            <Text style={styles.dayTabAddText}>+</Text>
+          <TouchableOpacity style={[styles.dayTabAdd, { backgroundColor: theme.colors.primaryLight, borderColor: theme.colors.primary }]} onPress={addDay} activeOpacity={0.8}>
+            <Text style={[styles.dayTabAddText, { color: theme.colors.primary }]}>+</Text>
           </TouchableOpacity>
         </ScrollView>
       </View>
 
       {/* Active Day Content */}
       <View style={styles.dayContent}>
-        <View style={styles.dayContentHeader}>
-          <Text style={styles.dayContentTitle}>{activeDay.name}</Text>
+        <View style={[styles.dayContentHeader, { borderBottomColor: theme.colors.borderLight }]}>
+          <Text style={[styles.dayContentTitle, { color: theme.colors.text }]}>{activeDay.name}</Text>
           <TouchableOpacity
-            style={styles.addButton}
+            style={[styles.addButton, { backgroundColor: theme.colors.primaryLight, borderColor: theme.colors.primary }]}
             onPress={() => openPicker(activeDayIndex)}
             activeOpacity={0.8}
           >
-            <Text style={styles.addButtonText}>+ Agregar ejercicios</Text>
+            <Text style={[styles.addButtonText, { color: theme.colors.primary }]}>+ Agregar ejercicios</Text>
           </TouchableOpacity>
         </View>
 
@@ -504,24 +511,25 @@ export function RoutineCreateScreen({ navigation }: RoutineScreenProps<'RoutineC
                   activeOpacity={0.9} 
                   style={[
                     styles.exerciseCard,
-                    isActive && styles.exerciseCardActive,
+                    { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
+                    isActive && { shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
                   ]}
                 >
                   <View style={styles.exerciseHeader}>
-                    <View style={styles.dragHandle}>
-                      <Text style={styles.dragHandleText}>⇅</Text>
+                    <View style={[styles.dragHandle, { backgroundColor: theme.colors.background }]}>
+                      <Text style={[styles.dragHandleText, { color: theme.colors.textMuted }]}>⇅</Text>
                     </View>
-                    <Text style={styles.exerciseName}>{item.exerciseName}</Text>
+                    <Text style={[styles.exerciseName, { color: theme.colors.text }]}>{item.exerciseName}</Text>
                     <TouchableOpacity
                       onPress={() => removeExercise(activeDayIndex, item.order)}
                       activeOpacity={0.8}
                     >
-                      <Text style={styles.removeText}>Eliminar</Text>
+                      <Text style={[styles.removeText, { color: theme.colors.error }]}>Eliminar</Text>
                     </TouchableOpacity>
                   </View>
 
                   <View style={styles.toggleRow}>
-                    <Text style={styles.toggleLabel}>Ejercicio basado en tiempo</Text>
+                    <Text style={[styles.toggleLabel, { color: theme.colors.textSecondary }]}>Ejercicio basado en tiempo</Text>
                     <Switch
                       value={item.isTimeBased ?? false}
                       onValueChange={(val) => {
@@ -531,16 +539,16 @@ export function RoutineCreateScreen({ navigation }: RoutineScreenProps<'RoutineC
                         });
                         clearFormError();
                       }}
-                      trackColor={{ false: '#ddd', true: '#2f95dc' }}
-                      thumbColor="#fff"
+                      trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+                      thumbColor={theme.colors.surface}
                     />
                   </View>
 
                   <View style={styles.fieldsRow}>
                     <View style={styles.field}>
-                      <Text style={styles.fieldLabel}>Series</Text>
+                      <Text style={[styles.fieldLabel, { color: theme.colors.textMuted }]}>Series</Text>
                       <TextInput
-                        style={styles.fieldInput}
+                        style={[styles.fieldInput, { backgroundColor: theme.colors.surfaceElevated, borderColor: theme.colors.border, color: theme.colors.text }]}
                         value={String(item.targetSets)}
                         onChangeText={(text) => {
                           const val = parseInt(text, 10);
@@ -553,9 +561,9 @@ export function RoutineCreateScreen({ navigation }: RoutineScreenProps<'RoutineC
                     </View>
                     {item.isTimeBased ? (
                       <View style={styles.field}>
-                        <Text style={styles.fieldLabel}>Duracion (s)</Text>
+                        <Text style={[styles.fieldLabel, { color: theme.colors.textMuted }]}>Duracion (s)</Text>
                         <TextInput
-                          style={styles.fieldInput}
+                          style={[styles.fieldInput, { backgroundColor: theme.colors.surfaceElevated, borderColor: theme.colors.border, color: theme.colors.text }]}
                           value={String(item.targetDurationSeconds ?? 0)}
                           onChangeText={(text) => {
                             const val = parseInt(text, 10);
@@ -568,9 +576,9 @@ export function RoutineCreateScreen({ navigation }: RoutineScreenProps<'RoutineC
                       </View>
                     ) : (
                       <View style={styles.field}>
-                        <Text style={styles.fieldLabel}>Reps</Text>
+                        <Text style={[styles.fieldLabel, { color: theme.colors.textMuted }]}>Reps</Text>
                         <TextInput
-                          style={styles.fieldInput}
+                          style={[styles.fieldInput, { backgroundColor: theme.colors.surfaceElevated, borderColor: theme.colors.border, color: theme.colors.text }]}
                           value={String(item.targetReps)}
                           onChangeText={(text) => {
                             const val = parseInt(text, 10);
@@ -583,9 +591,9 @@ export function RoutineCreateScreen({ navigation }: RoutineScreenProps<'RoutineC
                       </View>
                     )}
                     <View style={styles.field}>
-                      <Text style={styles.fieldLabel}>Descanso (s)</Text>
+                      <Text style={[styles.fieldLabel, { color: theme.colors.textMuted }]}>Descanso (s)</Text>
                       <TextInput
-                        style={styles.fieldInput}
+                        style={[styles.fieldInput, { backgroundColor: theme.colors.surfaceElevated, borderColor: theme.colors.border, color: theme.colors.text }]}
                         value={String(item.restSeconds)}
                         onChangeText={(text) => {
                           const val = parseInt(text, 10);
@@ -599,10 +607,11 @@ export function RoutineCreateScreen({ navigation }: RoutineScreenProps<'RoutineC
                   </View>
 
                   <TextInput
-                    style={[styles.input, styles.notesInput]}
+                    style={[styles.input, styles.notesInput, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, color: theme.colors.text }]}
                     value={item.notes ?? ''}
                     onChangeText={(text) => updateExercise(activeDayIndex, item.order, { notes: text || undefined })}
                     placeholder="Notas (opcional)"
+                    placeholderTextColor={theme.colors.textMuted}
                     maxLength={200}
                   />
                 </TouchableOpacity>
@@ -611,7 +620,7 @@ export function RoutineCreateScreen({ navigation }: RoutineScreenProps<'RoutineC
           />
         ) : (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyStateText}>
+            <Text style={[styles.emptyStateText, { color: theme.colors.textMuted }]}>
               Este dia no tiene ejercicios.{'\n'}
               Toca "+ Agregar ejercicios" para empezar.
             </Text>
@@ -619,20 +628,20 @@ export function RoutineCreateScreen({ navigation }: RoutineScreenProps<'RoutineC
         )}
       </View>
 
-      {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
-      {routineError ? <Text style={styles.errorText}>{routineError}</Text> : null}
+      {formError ? <Text style={[styles.errorText, { color: theme.colors.error }]}>{formError}</Text> : null}
+      {routineError ? <Text style={[styles.errorText, { color: theme.colors.error }]}>{routineError}</Text> : null}
 
-      <View style={styles.stepFooter}>
-        <TouchableOpacity style={styles.backButton} onPress={handleBack} activeOpacity={0.8}>
-          <Text style={styles.backButtonText}>← Atras</Text>
+      <View style={[styles.stepFooter, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.borderLight }]}>
+        <TouchableOpacity style={[styles.backButton, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]} onPress={handleBack} activeOpacity={0.8}>
+          <Text style={[styles.backButtonText, { color: theme.colors.textSecondary }]}>← Atras</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
+          style={[styles.saveButton, { backgroundColor: theme.colors.primary }, isSaving && styles.saveButtonDisabled]}
           onPress={handleSave}
           disabled={isSaving}
           activeOpacity={0.8}
         >
-          <Text style={styles.saveButtonText}>{isSaving ? 'Guardando...' : 'Guardar'}</Text>
+          <Text style={[styles.saveButtonText, { color: theme.colors.surface }]}>{isSaving ? 'Guardando...' : 'Guardar'}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -640,7 +649,7 @@ export function RoutineCreateScreen({ navigation }: RoutineScreenProps<'RoutineC
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       {step === 1 ? renderStep1() : renderStep2()}
@@ -691,7 +700,6 @@ const { width } = Dimensions.get('window');
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   stepContainer: {
     flex: 1,
@@ -703,7 +711,6 @@ const styles = StyleSheet.create({
   stepTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#1a1a1a',
     marginBottom: 20,
   },
   stepHeader: {
@@ -712,25 +719,20 @@ const styles = StyleSheet.create({
   },
   stepSubtitle: {
     fontSize: 16,
-    color: '#666',
     marginTop: 4,
   },
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
     marginBottom: 6,
     marginTop: 16,
   },
   input: {
-    backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: '#ddd',
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 15,
-    color: '#1a1a1a',
   },
   textArea: {
     height: 80,
@@ -743,9 +745,7 @@ const styles = StyleSheet.create({
   dayCountInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: '#ddd',
     borderRadius: 10,
     overflow: 'hidden',
   },
@@ -754,23 +754,19 @@ const styles = StyleSheet.create({
     height: 50,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f0f0f0',
   },
   dayCountButtonText: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#2f95dc',
   },
   dayCountInputField: {
     flex: 1,
     height: 50,
     fontSize: 20,
     fontWeight: '700',
-    color: '#1a1a1a',
     textAlign: 'center',
     borderLeftWidth: 1,
     borderRightWidth: 1,
-    borderColor: '#ddd',
   },
   dayList: {
     gap: 8,
@@ -778,18 +774,14 @@ const styles = StyleSheet.create({
   dayListItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
     borderRadius: 10,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#e8e8e8',
   },
   dayListNumber: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#2f95dc',
-    color: '#fff',
     fontSize: 14,
     fontWeight: '700',
     textAlign: 'center',
@@ -800,7 +792,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     fontWeight: '600',
-    color: '#1a1a1a',
     paddingVertical: 4,
   },
   dayListRemove: {
@@ -809,13 +800,10 @@ const styles = StyleSheet.create({
   },
   dayListRemoveText: {
     fontSize: 20,
-    color: '#d32f2f',
     fontWeight: '600',
   },
   dayTabsContainer: {
-    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
     paddingVertical: 8,
   },
   dayTabsContent: {
@@ -827,24 +815,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#f0f0f0',
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
     minHeight: 36,
-  },
-  dayTabActive: {
-    backgroundColor: '#2f95dc',
-    borderColor: '#2f95dc',
   },
   dayTabText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#555',
     marginRight: 4,
-  },
-  dayTabTextActive: {
-    color: '#fff',
   },
   dayTabRemove: {
     marginLeft: 4,
@@ -852,16 +830,13 @@ const styles = StyleSheet.create({
   },
   dayTabRemoveText: {
     fontSize: 16,
-    color: '#999',
     fontWeight: '600',
   },
   dayTabAdd: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#e3f2fd',
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#2f95dc',
     borderStyle: 'dashed',
     minHeight: 36,
     justifyContent: 'center',
@@ -869,7 +844,6 @@ const styles = StyleSheet.create({
   dayTabAddText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#2f95dc',
   },
   dayContent: {
     flex: 1,
@@ -882,44 +856,32 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
   },
   dayContentTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1a1a1a',
     flex: 1,
   },
   addButton: {
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: '#e3f2fd',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#2f95dc',
   },
   addButtonText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#2f95dc',
   },
   exerciseCard: {
-    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#e8e8e8',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
     shadowRadius: 2,
     elevation: 1,
-  },
-  exerciseCardActive: {
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   exerciseHeader: {
     flexDirection: 'row',
@@ -930,23 +892,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     marginRight: 8,
-    backgroundColor: '#f0f0f0',
     borderRadius: 6,
   },
   dragHandleText: {
     fontSize: 16,
-    color: '#999',
     fontWeight: '700',
   },
   exerciseName: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1a1a1a',
     flex: 1,
   },
   removeText: {
     fontSize: 13,
-    color: '#d32f2f',
     fontWeight: '500',
   },
   toggleRow: {
@@ -959,7 +917,6 @@ const styles = StyleSheet.create({
   toggleLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#555',
   },
   fieldsRow: {
     flexDirection: 'row',
@@ -972,20 +929,16 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: 11,
     fontWeight: '500',
-    color: '#888',
     marginBottom: 4,
     textAlign: 'center',
   },
   fieldInput: {
-    backgroundColor: '#fafafa',
     borderWidth: 1,
-    borderColor: '#ddd',
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 6,
     fontSize: 14,
     textAlign: 'center',
-    color: '#1a1a1a',
   },
   emptyState: {
     flex: 1,
@@ -995,13 +948,11 @@ const styles = StyleSheet.create({
   },
   emptyStateText: {
     fontSize: 14,
-    color: '#888',
     textAlign: 'center',
     lineHeight: 22,
   },
   errorText: {
     fontSize: 14,
-    color: '#d32f2f',
     textAlign: 'center',
     marginVertical: 8,
     paddingHorizontal: 16,
@@ -1011,54 +962,43 @@ const styles = StyleSheet.create({
     gap: 10,
     padding: 16,
     paddingBottom: 24,
-    backgroundColor: '#fff',
     borderTopWidth: 1,
-    borderTopColor: '#eee',
   },
   cancelButton: {
     flex: 1,
     paddingVertical: 12,
-    backgroundColor: '#f5f5f5',
     borderRadius: 10,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#ddd',
   },
   cancelButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#555',
   },
   nextButton: {
     flex: 1,
     paddingVertical: 12,
-    backgroundColor: '#2f95dc',
     borderRadius: 10,
     alignItems: 'center',
   },
   nextButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#fff',
   },
   backButton: {
     flex: 1,
     paddingVertical: 12,
-    backgroundColor: '#f5f5f5',
     borderRadius: 10,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#ddd',
   },
   backButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#555',
   },
   saveButton: {
     flex: 1,
     paddingVertical: 12,
-    backgroundColor: '#2f95dc',
     borderRadius: 10,
     alignItems: 'center',
   },
@@ -1068,6 +1008,5 @@ const styles = StyleSheet.create({
   saveButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#fff',
   },
 });

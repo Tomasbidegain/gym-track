@@ -20,6 +20,7 @@ import type { Exercise } from '../../../domain';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useTheme } from '../../context/ThemeContext';
 
 let dayCounter = 0;
 function generateDayId(): string {
@@ -50,6 +51,7 @@ function createDefaultRoutineExercise(exercise: Exercise, order: number): Routin
 }
 
 export function RoutineEditScreen({ route, navigation }: RoutineScreenProps<'RoutineEdit'>) {
+  const { theme } = useTheme();
   const { routineId } = route.params;
   const { routines, updateRoutine, clearError, error: routineError } = useRoutines();
   const { exercises: catalogExercises } = useExercises();
@@ -335,8 +337,8 @@ export function RoutineEditScreen({ route, navigation }: RoutineScreenProps<'Rou
 
   if (!isReady) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.loadingText}>Cargando rutina...</Text>
+      <View style={[styles.centerContainer, { backgroundColor: theme.colors.background }]}>
+        <Text style={[styles.loadingText, { color: theme.colors.textMuted }]}>Cargando rutina...</Text>
       </View>
     );
   }
@@ -344,34 +346,36 @@ export function RoutineEditScreen({ route, navigation }: RoutineScreenProps<'Rou
   const activeDay = days[activeDayIndex];
 
   return (
-    <GestureHandlerRootView style={styles.container}>
+    <GestureHandlerRootView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <KeyboardAvoidingView
-        style={styles.container}
+        style={[styles.container, { backgroundColor: theme.colors.background }]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={styles.header}>
-          <Text style={styles.label}>Nombre</Text>
+          <Text style={[styles.label, { color: theme.colors.text }]}>Nombre</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, color: theme.colors.text }]}
             value={name}
             onChangeText={(text) => {
               setName(text);
               clearFormError();
             }}
             placeholder="Nombre de la rutina"
+            placeholderTextColor={theme.colors.textMuted}
             maxLength={100}
             autoCapitalize="sentences"
           />
 
-          <Text style={styles.label}>Descripcion (opcional)</Text>
+          <Text style={[styles.label, { color: theme.colors.text }]}>Descripcion (opcional)</Text>
           <TextInput
-            style={[styles.input, styles.textArea]}
+            style={[styles.input, styles.textArea, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, color: theme.colors.text }]}
             value={description}
             onChangeText={(text) => {
               setDescription(text);
               clearFormError();
             }}
             placeholder="Descripcion de la rutina"
+            placeholderTextColor={theme.colors.textMuted}
             multiline
             numberOfLines={3}
             maxLength={500}
@@ -380,7 +384,7 @@ export function RoutineEditScreen({ route, navigation }: RoutineScreenProps<'Rou
         </View>
 
         {/* Day Tabs */}
-        <View style={styles.dayTabsContainer}>
+        <View style={[styles.dayTabsContainer, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.borderLight }]}>
           <ScrollView 
             horizontal 
             showsHorizontalScrollIndicator={false}
@@ -391,14 +395,16 @@ export function RoutineEditScreen({ route, navigation }: RoutineScreenProps<'Rou
                 key={day.id}
                 style={[
                   styles.dayTab,
-                  index === activeDayIndex && styles.dayTabActive,
+                  { backgroundColor: theme.colors.background, borderColor: theme.colors.borderLight },
+                  index === activeDayIndex && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
                 ]}
                 onPress={() => setActiveDayIndex(index)}
                 activeOpacity={0.8}
               >
                 <Text style={[
                   styles.dayTabText,
-                  index === activeDayIndex && styles.dayTabTextActive,
+                  { color: theme.colors.textSecondary },
+                  index === activeDayIndex && { color: theme.colors.surface },
                 ]}>
                   {day.name}
                 </Text>
@@ -408,27 +414,27 @@ export function RoutineEditScreen({ route, navigation }: RoutineScreenProps<'Rou
                     onPress={() => removeDay(index)}
                     activeOpacity={0.6}
                   >
-                    <Text style={styles.dayTabRemoveText}>×</Text>
+                    <Text style={[styles.dayTabRemoveText, { color: theme.colors.textMuted }]}>×</Text>
                   </TouchableOpacity>
                 )}
               </TouchableOpacity>
             ))}
-            <TouchableOpacity style={styles.dayTabAdd} onPress={addDay} activeOpacity={0.8}>
-              <Text style={styles.dayTabAddText}>+</Text>
+            <TouchableOpacity style={[styles.dayTabAdd, { backgroundColor: theme.colors.primaryLight, borderColor: theme.colors.primary }]} onPress={addDay} activeOpacity={0.8}>
+              <Text style={[styles.dayTabAddText, { color: theme.colors.primary }]}>+</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
 
         {/* Active Day Content */}
         <View style={styles.dayContent}>
-          <View style={styles.dayContentHeader}>
-            <Text style={styles.dayContentTitle}>{activeDay.name}</Text>
+          <View style={[styles.dayContentHeader, { borderBottomColor: theme.colors.borderLight }]}>
+            <Text style={[styles.dayContentTitle, { color: theme.colors.text }]}>{activeDay.name}</Text>
             <TouchableOpacity
-              style={styles.addButton}
+              style={[styles.addButton, { backgroundColor: theme.colors.primaryLight, borderColor: theme.colors.primary }]}
               onPress={() => openPicker(activeDayIndex)}
               activeOpacity={0.8}
             >
-              <Text style={styles.addButtonText}>+ Agregar ejercicios</Text>
+              <Text style={[styles.addButtonText, { color: theme.colors.primary }]}>+ Agregar ejercicios</Text>
             </TouchableOpacity>
           </View>
 
@@ -444,24 +450,25 @@ export function RoutineEditScreen({ route, navigation }: RoutineScreenProps<'Rou
                     activeOpacity={0.9} 
                     style={[
                       styles.exerciseCard,
-                      isActive && styles.exerciseCardActive,
+                      { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
+                      isActive && { shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
                     ]}
                   >
                     <View style={styles.exerciseHeader}>
-                      <View style={styles.dragHandle}>
-                        <Text style={styles.dragHandleText}>⇅</Text>
+                      <View style={[styles.dragHandle, { backgroundColor: theme.colors.background }]}>
+                        <Text style={[styles.dragHandleText, { color: theme.colors.textMuted }]}>⇅</Text>
                       </View>
-                      <Text style={styles.exerciseName}>{item.exerciseName}</Text>
+                      <Text style={[styles.exerciseName, { color: theme.colors.text }]}>{item.exerciseName}</Text>
                       <TouchableOpacity
                         onPress={() => removeExercise(activeDayIndex, item.order)}
                         activeOpacity={0.8}
                       >
-                        <Text style={styles.removeText}>Eliminar</Text>
+                        <Text style={[styles.removeText, { color: theme.colors.error }]}>Eliminar</Text>
                       </TouchableOpacity>
                     </View>
 
                     <View style={styles.toggleRow}>
-                      <Text style={styles.toggleLabel}>Ejercicio basado en tiempo</Text>
+                      <Text style={[styles.toggleLabel, { color: theme.colors.textSecondary }]}>Ejercicio basado en tiempo</Text>
                       <Switch
                         value={item.isTimeBased ?? false}
                         onValueChange={(val) => {
@@ -471,16 +478,16 @@ export function RoutineEditScreen({ route, navigation }: RoutineScreenProps<'Rou
                           });
                           clearFormError();
                         }}
-                        trackColor={{ false: '#ddd', true: '#2f95dc' }}
-                        thumbColor="#fff"
+                        trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+                        thumbColor={theme.colors.surface}
                       />
                     </View>
 
                     <View style={styles.fieldsRow}>
                       <View style={styles.field}>
-                        <Text style={styles.fieldLabel}>Series</Text>
+                        <Text style={[styles.fieldLabel, { color: theme.colors.textMuted }]}>Series</Text>
                         <TextInput
-                          style={styles.fieldInput}
+                          style={[styles.fieldInput, { backgroundColor: theme.colors.surfaceElevated, borderColor: theme.colors.border, color: theme.colors.text }]}
                           value={String(item.targetSets)}
                           onChangeText={(text) => {
                             const val = parseInt(text, 10);
@@ -493,9 +500,9 @@ export function RoutineEditScreen({ route, navigation }: RoutineScreenProps<'Rou
                       </View>
                       {item.isTimeBased ? (
                         <View style={styles.field}>
-                          <Text style={styles.fieldLabel}>Duracion (s)</Text>
+                          <Text style={[styles.fieldLabel, { color: theme.colors.textMuted }]}>Duracion (s)</Text>
                           <TextInput
-                            style={styles.fieldInput}
+                            style={[styles.fieldInput, { backgroundColor: theme.colors.surfaceElevated, borderColor: theme.colors.border, color: theme.colors.text }]}
                             value={String(item.targetDurationSeconds ?? 0)}
                             onChangeText={(text) => {
                               const val = parseInt(text, 10);
@@ -508,9 +515,9 @@ export function RoutineEditScreen({ route, navigation }: RoutineScreenProps<'Rou
                         </View>
                       ) : (
                         <View style={styles.field}>
-                          <Text style={styles.fieldLabel}>Reps</Text>
+                          <Text style={[styles.fieldLabel, { color: theme.colors.textMuted }]}>Reps</Text>
                           <TextInput
-                            style={styles.fieldInput}
+                            style={[styles.fieldInput, { backgroundColor: theme.colors.surfaceElevated, borderColor: theme.colors.border, color: theme.colors.text }]}
                             value={String(item.targetReps)}
                             onChangeText={(text) => {
                               const val = parseInt(text, 10);
@@ -523,9 +530,9 @@ export function RoutineEditScreen({ route, navigation }: RoutineScreenProps<'Rou
                         </View>
                       )}
                       <View style={styles.field}>
-                        <Text style={styles.fieldLabel}>Descanso (s)</Text>
+                        <Text style={[styles.fieldLabel, { color: theme.colors.textMuted }]}>Descanso (s)</Text>
                         <TextInput
-                          style={styles.fieldInput}
+                          style={[styles.fieldInput, { backgroundColor: theme.colors.surfaceElevated, borderColor: theme.colors.border, color: theme.colors.text }]}
                           value={String(item.restSeconds)}
                           onChangeText={(text) => {
                             const val = parseInt(text, 10);
@@ -539,10 +546,11 @@ export function RoutineEditScreen({ route, navigation }: RoutineScreenProps<'Rou
                     </View>
 
                     <TextInput
-                      style={[styles.input, styles.notesInput]}
+                      style={[styles.input, styles.notesInput, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, color: theme.colors.text }]}
                       value={item.notes ?? ''}
                       onChangeText={(text) => updateExercise(activeDayIndex, item.order, { notes: text || undefined })}
                       placeholder="Notas (opcional)"
+                      placeholderTextColor={theme.colors.textMuted}
                       maxLength={200}
                     />
                   </TouchableOpacity>
@@ -551,7 +559,7 @@ export function RoutineEditScreen({ route, navigation }: RoutineScreenProps<'Rou
             />
           ) : (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>
+              <Text style={[styles.emptyStateText, { color: theme.colors.textMuted }]}>
                 Este dia no tiene ejercicios.{'\n'}
                 Toca "+ Agregar ejercicios" para empezar.
               </Text>
@@ -559,20 +567,20 @@ export function RoutineEditScreen({ route, navigation }: RoutineScreenProps<'Rou
           )}
         </View>
 
-        {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
-        {routineError ? <Text style={styles.errorText}>{routineError}</Text> : null}
+        {formError ? <Text style={[styles.errorText, { color: theme.colors.error }]}>{formError}</Text> : null}
+        {routineError ? <Text style={[styles.errorText, { color: theme.colors.error }]}>{routineError}</Text> : null}
 
-        <View style={styles.footer}>
+        <View style={[styles.footer, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.borderLight }]}>
           <TouchableOpacity
-            style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
+            style={[styles.saveButton, { backgroundColor: theme.colors.primary }, isSaving && styles.saveButtonDisabled]}
             onPress={handleSave}
             disabled={isSaving}
             activeOpacity={0.8}
           >
-            <Text style={styles.saveButtonText}>{isSaving ? 'Guardando...' : 'Guardar'}</Text>
+            <Text style={[styles.saveButtonText, { color: theme.colors.surface }]}>{isSaving ? 'Guardando...' : 'Guardar'}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.cancelButton} onPress={handleCancel} activeOpacity={0.8}>
-            <Text style={styles.cancelButtonText}>Cancelar</Text>
+          <TouchableOpacity style={[styles.cancelButton, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]} onPress={handleCancel} activeOpacity={0.8}>
+            <Text style={[styles.cancelButtonText, { color: theme.colors.textSecondary }]}>Cancelar</Text>
           </TouchableOpacity>
         </View>
 
@@ -621,7 +629,6 @@ export function RoutineEditScreen({ route, navigation }: RoutineScreenProps<'Rou
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   centerContainer: {
     flex: 1,
@@ -630,7 +637,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: '#888',
   },
   header: {
     padding: 16,
@@ -639,19 +645,15 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
     marginBottom: 6,
   },
   input: {
-    backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: '#ddd',
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 15,
     marginBottom: 16,
-    color: '#1a1a1a',
   },
   textArea: {
     height: 80,
@@ -663,9 +665,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   dayTabsContainer: {
-    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
     paddingVertical: 8,
   },
   dayTabsContent: {
@@ -677,24 +677,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#f0f0f0',
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
     minHeight: 36,
-  },
-  dayTabActive: {
-    backgroundColor: '#2f95dc',
-    borderColor: '#2f95dc',
   },
   dayTabText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#555',
     marginRight: 4,
-  },
-  dayTabTextActive: {
-    color: '#fff',
   },
   dayTabRemove: {
     marginLeft: 4,
@@ -702,16 +692,13 @@ const styles = StyleSheet.create({
   },
   dayTabRemoveText: {
     fontSize: 16,
-    color: '#999',
     fontWeight: '600',
   },
   dayTabAdd: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#e3f2fd',
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#2f95dc',
     borderStyle: 'dashed',
     minHeight: 36,
     justifyContent: 'center',
@@ -719,7 +706,6 @@ const styles = StyleSheet.create({
   dayTabAddText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#2f95dc',
   },
   dayContent: {
     flex: 1,
@@ -732,44 +718,32 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
   },
   dayContentTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1a1a1a',
     flex: 1,
   },
   addButton: {
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: '#e3f2fd',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#2f95dc',
   },
   addButtonText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#2f95dc',
   },
   exerciseCard: {
-    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#e8e8e8',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
     shadowRadius: 2,
     elevation: 1,
-  },
-  exerciseCardActive: {
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   exerciseHeader: {
     flexDirection: 'row',
@@ -780,23 +754,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     marginRight: 8,
-    backgroundColor: '#f0f0f0',
     borderRadius: 6,
   },
   dragHandleText: {
     fontSize: 16,
-    color: '#999',
     fontWeight: '700',
   },
   exerciseName: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1a1a1a',
     flex: 1,
   },
   removeText: {
     fontSize: 13,
-    color: '#d32f2f',
     fontWeight: '500',
   },
   toggleRow: {
@@ -809,7 +779,6 @@ const styles = StyleSheet.create({
   toggleLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#555',
   },
   fieldsRow: {
     flexDirection: 'row',
@@ -822,20 +791,16 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: 11,
     fontWeight: '500',
-    color: '#888',
     marginBottom: 4,
     textAlign: 'center',
   },
   fieldInput: {
-    backgroundColor: '#fafafa',
     borderWidth: 1,
-    borderColor: '#ddd',
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 6,
     fontSize: 14,
     textAlign: 'center',
-    color: '#1a1a1a',
   },
   emptyState: {
     flex: 1,
@@ -845,13 +810,11 @@ const styles = StyleSheet.create({
   },
   emptyStateText: {
     fontSize: 14,
-    color: '#888',
     textAlign: 'center',
     lineHeight: 22,
   },
   errorText: {
     fontSize: 14,
-    color: '#d32f2f',
     textAlign: 'center',
     marginVertical: 8,
     paddingHorizontal: 16,
@@ -861,14 +824,11 @@ const styles = StyleSheet.create({
     gap: 10,
     padding: 16,
     paddingBottom: 24,
-    backgroundColor: '#fff',
     borderTopWidth: 1,
-    borderTopColor: '#eee',
   },
   saveButton: {
     flex: 1,
     paddingVertical: 12,
-    backgroundColor: '#2f95dc',
     borderRadius: 10,
     alignItems: 'center',
   },
@@ -878,20 +838,16 @@ const styles = StyleSheet.create({
   saveButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#fff',
   },
   cancelButton: {
     flex: 1,
     paddingVertical: 12,
-    backgroundColor: '#f5f5f5',
     borderRadius: 10,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#ddd',
   },
   cancelButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#555',
   },
 });

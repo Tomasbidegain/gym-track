@@ -8,10 +8,12 @@ import {
 } from 'react-native';
 import type { TrainScreenProps } from '../../navigation/types';
 import { useRoutines } from '../../hooks/useRoutines';
+import { useTheme } from '../../context/ThemeContext';
 
 export function TrainLobbyScreen({
   navigation,
 }: TrainScreenProps<'TrainLobby'>) {
+  const { theme } = useTheme();
   const { routines, isLoading } = useRoutines();
 
   useEffect(() => {
@@ -22,36 +24,36 @@ export function TrainLobbyScreen({
 
   if (isLoading) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.emptyText}>Cargando rutinas...</Text>
+      <View style={[styles.centerContainer, { backgroundColor: theme.colors.background }]}>
+        <Text style={[styles.emptyText, { color: theme.colors.textMuted }]}>Cargando rutinas...</Text>
       </View>
     );
   }
 
   if (routines.length === 0) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.emptyText}>No tenes rutinas creadas</Text>
-        <Text style={styles.hintText}>Crea una rutina para empezar a entrenar</Text>
+      <View style={[styles.centerContainer, { backgroundColor: theme.colors.background }]}>
+        <Text style={[styles.emptyText, { color: theme.colors.textMuted }]}>No tenes rutinas creadas</Text>
+        <Text style={[styles.hintText, { color: theme.colors.textMuted }]}>Crea una rutina para empezar a entrenar</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Elegi una rutina</Text>
+    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]} contentContainerStyle={styles.content}>
+      <Text style={[styles.title, { color: theme.colors.text }]}>Elegi una rutina</Text>
       {routines.map((routine) => (
         <TouchableOpacity
           key={routine.id}
-          style={styles.card}
+          style={[styles.card, { backgroundColor: theme.colors.surface, shadowColor: theme.colors.shadow }]}
           onPress={() => navigation.navigate('DaySelection', { routineId: routine.id })}
           activeOpacity={0.8}
         >
-          <Text style={styles.cardTitle}>{routine.name}</Text>
+          <Text style={[styles.cardTitle, { color: theme.colors.text }]}>{routine.name}</Text>
           {routine.description ? (
-            <Text style={styles.cardDescription}>{routine.description}</Text>
+            <Text style={[styles.cardDescription, { color: theme.colors.textSecondary }]}>{routine.description}</Text>
           ) : null}
-          <Text style={styles.cardMeta}>
+          <Text style={[styles.cardMeta, { color: theme.colors.textMuted }]}>
             {routine.days.length} {routine.days.length === 1 ? 'dia' : 'dias'}
           </Text>
         </TouchableOpacity>
@@ -62,6 +64,9 @@ export function TrainLobbyScreen({
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  content: {
     padding: 16,
     paddingBottom: 24,
     gap: 12,
@@ -75,26 +80,21 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#1a1a1a',
     marginBottom: 16,
   },
   emptyText: {
     fontSize: 16,
-    color: '#888',
     marginBottom: 8,
     textAlign: 'center',
   },
   hintText: {
     fontSize: 14,
-    color: '#aaa',
     textAlign: 'center',
   },
   card: {
-    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
     shadowRadius: 3,
@@ -103,18 +103,15 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1a1a1a',
     marginBottom: 4,
   },
   cardDescription: {
     fontSize: 14,
-    color: '#666',
     marginBottom: 8,
     lineHeight: 20,
   },
   cardMeta: {
     fontSize: 13,
-    color: '#888',
     fontWeight: '500',
   },
 });

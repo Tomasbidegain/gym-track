@@ -11,6 +11,7 @@ import { useWorkoutSessionContext } from '../../context/WorkoutSessionContext';
 import { StatsOverviewCard } from './components/StatsOverviewCard';
 import { TopExerciseCard } from './components/TopExerciseCard';
 import { CalendarView } from './components/CalendarView';
+import { useTheme } from '../../context/ThemeContext';
 
 type TimeFilter = 'week' | 'month' | 'all';
 
@@ -25,6 +26,7 @@ interface ExerciseProgress {
 }
 
 export function ProgressScreen({ navigation }: MainAppTabScreenProps<'Progress'>) {
+  const { theme } = useTheme();
   const { sessions } = useWorkoutSessionContext();
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('month');
 
@@ -207,10 +209,10 @@ export function ProgressScreen({ navigation }: MainAppTabScreenProps<'Progress'>
 
   if (filteredSessions.length === 0) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyTitle}>Sin datos todavía</Text>
-          <Text style={styles.emptyText}>
+          <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>Sin datos todavía</Text>
+          <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
             Completá algunos entrenamientos para ver tu progreso
           </Text>
         </View>
@@ -219,20 +221,20 @@ export function ProgressScreen({ navigation }: MainAppTabScreenProps<'Progress'>
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Time Filter */}
-      <View style={styles.filterContainer}>
+      <View style={[styles.filterContainer, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.borderLight }]}>
         <TouchableOpacity
           style={[
             styles.filterButton,
-            timeFilter === 'week' && styles.filterButtonActive,
+            { backgroundColor: timeFilter === 'week' ? theme.colors.primary : theme.colors.background },
           ]}
           onPress={() => setTimeFilter('week')}
         >
           <Text
             style={[
               styles.filterText,
-              timeFilter === 'week' && styles.filterTextActive,
+              { color: timeFilter === 'week' ? theme.colors.surface : theme.colors.textSecondary },
             ]}
           >
             Semana
@@ -241,14 +243,14 @@ export function ProgressScreen({ navigation }: MainAppTabScreenProps<'Progress'>
         <TouchableOpacity
           style={[
             styles.filterButton,
-            timeFilter === 'month' && styles.filterButtonActive,
+            { backgroundColor: timeFilter === 'month' ? theme.colors.primary : theme.colors.background },
           ]}
           onPress={() => setTimeFilter('month')}
         >
           <Text
             style={[
               styles.filterText,
-              timeFilter === 'month' && styles.filterTextActive,
+              { color: timeFilter === 'month' ? theme.colors.surface : theme.colors.textSecondary },
             ]}
           >
             Mes
@@ -257,14 +259,14 @@ export function ProgressScreen({ navigation }: MainAppTabScreenProps<'Progress'>
         <TouchableOpacity
           style={[
             styles.filterButton,
-            timeFilter === 'all' && styles.filterButtonActive,
+            { backgroundColor: timeFilter === 'all' ? theme.colors.primary : theme.colors.background },
           ]}
           onPress={() => setTimeFilter('all')}
         >
           <Text
             style={[
               styles.filterText,
-              timeFilter === 'all' && styles.filterTextActive,
+              { color: timeFilter === 'all' ? theme.colors.surface : theme.colors.textSecondary },
             ]}
           >
             Todo
@@ -284,7 +286,7 @@ export function ProgressScreen({ navigation }: MainAppTabScreenProps<'Progress'>
         {/* Section 2: Top Exercises */}
         {topExercises.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Ejercicios Principales</Text>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Ejercicios Principales</Text>
             {topExercises.map((exercise) => (
               <TopExerciseCard
                 key={exercise.exerciseId}
@@ -308,7 +310,6 @@ export function ProgressScreen({ navigation }: MainAppTabScreenProps<'Progress'>
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   emptyContainer: {
     flex: 1,
@@ -319,39 +320,27 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#333',
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 14,
-    color: '#666',
     textAlign: 'center',
   },
   filterContainer: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
     padding: 12,
     gap: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
   },
   filterButton: {
     flex: 1,
     paddingVertical: 10,
     borderRadius: 8,
-    backgroundColor: '#f5f5f5',
     alignItems: 'center',
-  },
-  filterButtonActive: {
-    backgroundColor: '#2f95dc',
   },
   filterText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#666',
-  },
-  filterTextActive: {
-    color: '#fff',
   },
   content: {
     flex: 1,
@@ -363,7 +352,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#333',
     marginBottom: 12,
   },
 });

@@ -7,12 +7,24 @@ import { RoutineStack } from "./RoutineStack";
 import { TrainStack } from "./TrainStack";
 import { ProgressScreen } from "../screens/progress/ProgressScreen";
 import { FontAwesome, FontAwesome5 } from "@expo/vector-icons";
+import { useTheme } from "../context/ThemeContext";
 
 const Tab = createBottomTabNavigator<MainAppTabParamList>();
 
 export function MainAppTabs() {
+  const { theme } = useTheme();
   return (
-    <Tab.Navigator initialRouteName="Progress">
+    <Tab.Navigator
+      initialRouteName="Progress"
+      screenOptions={{
+        tabBarStyle: {
+          backgroundColor: theme.colors.surface,
+          borderTopColor: theme.colors.borderLight,
+        },
+        tabBarActiveTintColor: theme.colors.primary,
+        tabBarInactiveTintColor: theme.colors.textSecondary,
+      }}
+    >
       <Tab.Screen
         name="Exercises"
         component={ExerciseStack}

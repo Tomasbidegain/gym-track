@@ -15,6 +15,7 @@ import { useExercises } from '../../hooks/useExercises';
 import { ExerciseCard } from '../../components/ExerciseCard';
 import type { MuscleGroup, Equipment } from '../../../domain';
 import { MUSCLE_GROUPS, EQUIPMENT_TYPES } from '../../../domain';
+import { useTheme } from '../../context/ThemeContext';
 
 const muscleGroupLabels: Record<string, string> = {
   chest: 'Pecho',
@@ -41,6 +42,7 @@ const equipmentLabels: Record<string, string> = {
 };
 
 export function ExerciseListScreen({ navigation }: ExerciseScreenProps<'ExerciseList'>) {
+  const { theme } = useTheme();
   const {
     exercises,
     isLoading,
@@ -71,11 +73,12 @@ export function ExerciseListScreen({ navigation }: ExerciseScreenProps<'Exercise
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.searchContainer}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <View style={[styles.searchContainer, { backgroundColor: theme.colors.surface }]}>
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, { backgroundColor: theme.colors.surfaceElevated, borderColor: theme.colors.border, color: theme.colors.text }]}
           placeholder="Buscar ejercicio..."
+          placeholderTextColor={theme.colors.textMuted}
           value={searchQuery}
           onChangeText={(text) => {
             clearError();
@@ -86,15 +89,16 @@ export function ExerciseListScreen({ navigation }: ExerciseScreenProps<'Exercise
         />
       </View>
 
-      <View style={styles.filtersContainer}>
-        <Text style={styles.filterLabel}>Grupo muscular</Text>
+      <View style={[styles.filtersContainer, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.borderLight }]}>
+        <Text style={[styles.filterLabel, { color: theme.colors.textMuted }]}>Grupo muscular</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
           {MUSCLE_GROUPS.map((group) => (
             <TouchableOpacity
               key={group}
               style={[
                 styles.chip,
-                muscleGroupFilter === group && styles.chipActive,
+                { backgroundColor: theme.colors.background, borderColor: theme.colors.borderLight },
+                muscleGroupFilter === group && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
               ]}
               onPress={() => handleMuscleGroupToggle(group)}
               activeOpacity={0.8}
@@ -102,7 +106,8 @@ export function ExerciseListScreen({ navigation }: ExerciseScreenProps<'Exercise
               <Text
                 style={[
                   styles.chipText,
-                  muscleGroupFilter === group && styles.chipTextActive,
+                  { color: theme.colors.textSecondary },
+                  muscleGroupFilter === group && { color: theme.colors.surface },
                 ]}
               >
                 {muscleGroupLabels[group] ?? group}
@@ -111,14 +116,15 @@ export function ExerciseListScreen({ navigation }: ExerciseScreenProps<'Exercise
           ))}
         </ScrollView>
 
-        <Text style={styles.filterLabel}>Equipamiento</Text>
+        <Text style={[styles.filterLabel, { color: theme.colors.textMuted }]}>Equipamiento</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
           {EQUIPMENT_TYPES.map((equipment) => (
             <TouchableOpacity
               key={equipment}
               style={[
                 styles.chip,
-                equipmentFilter === equipment && styles.chipActive,
+                { backgroundColor: theme.colors.background, borderColor: theme.colors.borderLight },
+                equipmentFilter === equipment && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
               ]}
               onPress={() => handleEquipmentToggle(equipment)}
               activeOpacity={0.8}
@@ -126,7 +132,8 @@ export function ExerciseListScreen({ navigation }: ExerciseScreenProps<'Exercise
               <Text
                 style={[
                   styles.chipText,
-                  equipmentFilter === equipment && styles.chipTextActive,
+                  { color: theme.colors.textSecondary },
+                  equipmentFilter === equipment && { color: theme.colors.surface },
                 ]}
               >
                 {equipmentLabels[equipment] ?? equipment}
@@ -137,17 +144,17 @@ export function ExerciseListScreen({ navigation }: ExerciseScreenProps<'Exercise
       </View>
 
       {error ? (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity onPress={refresh} style={styles.retryButton}>
-            <Text style={styles.retryButtonText}>Reintentar</Text>
+        <View style={[styles.errorContainer, { backgroundColor: theme.colors.errorLight }]}>
+          <Text style={[styles.errorText, { color: theme.colors.error }]}>{error}</Text>
+          <TouchableOpacity onPress={refresh} style={[styles.retryButton, { backgroundColor: theme.colors.primary }]}>
+            <Text style={[styles.retryButtonText, { color: theme.colors.surface }]}>Reintentar</Text>
           </TouchableOpacity>
         </View>
       ) : null}
 
       {isLoading && exercises.length === 0 ? (
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#2f95dc" />
+          <ActivityIndicator size="large" color={theme.colors.primary} />
         </View>
       ) : (
         <FlatList
@@ -163,12 +170,12 @@ export function ExerciseListScreen({ navigation }: ExerciseScreenProps<'Exercise
           )}
           contentContainerStyle={styles.listContent}
           refreshControl={
-            <RefreshControl refreshing={isLoading} onRefresh={refresh} tintColor="#2f95dc" />
+            <RefreshControl refreshing={isLoading} onRefresh={refresh} tintColor={theme.colors.primary} />
           }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyTitle}>No hay ejercicios</Text>
-              <Text style={styles.emptySubtitle}>
+              <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No hay ejercicios</Text>
+              <Text style={[styles.emptySubtitle, { color: theme.colors.textMuted }]}>
                 {searchQuery || muscleGroupFilter || equipmentFilter
                   ? 'Probá ajustando los filtros de búsqueda'
                   : 'Agregá tu primer ejercicio con el botón +'}
@@ -178,8 +185,8 @@ export function ExerciseListScreen({ navigation }: ExerciseScreenProps<'Exercise
         />
       )}
 
-      <TouchableOpacity style={styles.fab} onPress={handleCreate} activeOpacity={0.8}>
-        <Text style={styles.fabText}>+</Text>
+      <TouchableOpacity style={[styles.fab, { backgroundColor: theme.colors.primary }]} onPress={handleCreate} activeOpacity={0.8}>
+        <Text style={[styles.fabText, { color: theme.colors.surface }]}>+</Text>
       </TouchableOpacity>
     </View>
   );
@@ -188,34 +195,27 @@ export function ExerciseListScreen({ navigation }: ExerciseScreenProps<'Exercise
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   searchContainer: {
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 8,
-    backgroundColor: '#fff',
   },
   searchInput: {
     height: 44,
     borderWidth: 1,
-    borderColor: '#ddd',
     borderRadius: 10,
     paddingHorizontal: 14,
     fontSize: 15,
-    backgroundColor: '#fafafa',
   },
   filtersContainer: {
-    backgroundColor: '#fff',
     paddingHorizontal: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
   },
   filterLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#888',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginTop: 8,
@@ -230,21 +230,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
-    backgroundColor: '#f0f0f0',
     borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  chipActive: {
-    backgroundColor: '#2f95dc',
-    borderColor: '#2f95dc',
   },
   chipText: {
     fontSize: 13,
-    color: '#555',
     fontWeight: '500',
-  },
-  chipTextActive: {
-    color: '#fff',
   },
   listContent: {
     paddingVertical: 8,
@@ -256,7 +246,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   errorContainer: {
-    backgroundColor: '#ffebee',
     padding: 16,
     marginHorizontal: 16,
     marginTop: 12,
@@ -264,7 +253,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   errorText: {
-    color: '#d32f2f',
     fontSize: 14,
     textAlign: 'center',
   },
@@ -272,11 +260,9 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#2f95dc',
     borderRadius: 8,
   },
   retryButtonText: {
-    color: '#fff',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -289,12 +275,10 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
     marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#888',
     textAlign: 'center',
   },
   fab: {
@@ -304,7 +288,6 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#2f95dc',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -315,7 +298,6 @@ const styles = StyleSheet.create({
   },
   fabText: {
     fontSize: 28,
-    color: '#fff',
     fontWeight: '300',
     lineHeight: 32,
   },

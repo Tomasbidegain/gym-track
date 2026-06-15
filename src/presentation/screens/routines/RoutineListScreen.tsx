@@ -11,6 +11,7 @@ import type { RoutineScreenProps } from '../../navigation/types';
 import { useRoutines } from '../../hooks/useRoutines';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import type { Routine } from '../../../domain';
+import { useTheme } from '../../context/ThemeContext';
 
 const muscleGroupLabels: Record<string, string> = {
   chest: 'Pecho',
@@ -32,6 +33,7 @@ function getMuscleGroupBadges(routine: Routine): string[] {
 }
 
 export function RoutineListScreen({ navigation }: RoutineScreenProps<'RoutineList'>) {
+  const { theme } = useTheme();
   const { routines, isLoading, refresh, deleteRoutine, duplicateRoutine, clearError } =
     useRoutines();
 
@@ -109,53 +111,53 @@ export function RoutineListScreen({ navigation }: RoutineScreenProps<'RoutineLis
           onPress={() => handleRoutinePress(item)}
           onLongPress={() => handleLongPress(item)}
           delayLongPress={400}
-          style={styles.card}
+          style={[styles.card, { backgroundColor: theme.colors.surface, shadowColor: theme.colors.shadow }]}
         >
-          <Text style={styles.name}>{item.name}</Text>
-          <Text style={styles.dayCount}>
+          <Text style={[styles.name, { color: theme.colors.text }]}>{item.name}</Text>
+          <Text style={[styles.dayCount, { color: theme.colors.textMuted }]}>
             {item.days.length} {item.days.length === 1 ? 'dia' : 'dias'}
             {totalExercises > 0 && ` · ${totalExercises} ejercicios`}
           </Text>
           <View style={styles.badgesRow}>
             {badges.map((group) => (
-              <View key={group} style={styles.badge}>
-                <Text style={styles.badgeText}>
+              <View key={group} style={[styles.badge, { backgroundColor: theme.colors.primaryLight }]}>
+                <Text style={[styles.badgeText, { color: theme.colors.text }]}>
                   {muscleGroupLabels[group] ?? group}
                 </Text>
               </View>
             ))}
             {badges.length > 0 && totalExercises > badges.length && (
-              <Text style={styles.moreBadge}>+{totalExercises - badges.length}</Text>
+              <Text style={[styles.moreBadge, { color: theme.colors.textMuted }]}>+{totalExercises - badges.length}</Text>
             )}
           </View>
         </TouchableOpacity>
       );
     },
-    [handleRoutinePress, handleLongPress],
+    [handleRoutinePress, handleLongPress, theme],
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <FlatList
         data={sortedRoutines}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
         refreshControl={
-          <RefreshControl refreshing={isLoading} onRefresh={handleRefresh} tintColor="#2f95dc" />
+          <RefreshControl refreshing={isLoading} onRefresh={handleRefresh} tintColor={theme.colors.primary} />
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyTitle}>No tenes rutinas</Text>
-            <Text style={styles.emptySubtitle}>
+            <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No tenes rutinas</Text>
+            <Text style={[styles.emptySubtitle, { color: theme.colors.textMuted }]}>
               Crea una para empezar a entrenar con orden
             </Text>
           </View>
         }
       />
 
-      <TouchableOpacity style={styles.fab} onPress={handleCreate} activeOpacity={0.8}>
-        <Text style={styles.fabText}>+</Text>
+      <TouchableOpacity style={[styles.fab, { backgroundColor: theme.colors.primary }]} onPress={handleCreate} activeOpacity={0.8}>
+        <Text style={[styles.fabText, { color: theme.colors.surface }]}>+</Text>
       </TouchableOpacity>
 
       <ConfirmModal
@@ -187,19 +189,16 @@ export function RoutineListScreen({ navigation }: RoutineScreenProps<'RoutineLis
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   listContent: {
     paddingVertical: 8,
     paddingBottom: 80,
   },
   card: {
-    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
     marginHorizontal: 16,
     marginVertical: 6,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
     shadowRadius: 3,
@@ -208,12 +207,10 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1a1a1a',
     marginBottom: 4,
   },
   dayCount: {
     fontSize: 13,
-    color: '#888',
     marginBottom: 8,
   },
   badgesRow: {
@@ -226,16 +223,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
-    backgroundColor: '#e3f2fd',
   },
   badgeText: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#333',
   },
   moreBadge: {
     fontSize: 12,
-    color: '#888',
     fontWeight: '500',
   },
   emptyContainer: {
@@ -247,12 +241,10 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
     marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#888',
     textAlign: 'center',
   },
   fab: {
@@ -262,7 +254,6 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#2f95dc',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -273,7 +264,6 @@ const styles = StyleSheet.create({
   },
   fabText: {
     fontSize: 28,
-    color: '#fff',
     fontWeight: '300',
     lineHeight: 32,
   },

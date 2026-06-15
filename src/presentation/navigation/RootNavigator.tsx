@@ -5,16 +5,18 @@ import { useAuthContext } from '../context/AuthContext';
 import { RoutineContextProvider } from '../context/RoutineContext';
 import { WorkoutSessionContextProvider } from '../context/WorkoutSessionContext';
 import { ExercisePickerProvider } from '../context/ExercisePickerContext';
+import { ThemeProvider, useTheme } from '../context/ThemeContext';
 import { AuthStack } from './AuthStack';
 import { MainAppTabs } from './MainAppTabs';
 
-export function RootNavigator() {
+function RootNavigatorContent() {
   const { user, isInitializing } = useAuthContext();
+  const { theme } = useTheme();
 
   if (isInitializing) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2f95dc" />
+      <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
@@ -33,6 +35,14 @@ export function RootNavigator() {
         <AuthStack />
       )}
     </NavigationContainer>
+  );
+}
+
+export function RootNavigator() {
+  return (
+    <ThemeProvider>
+      <RootNavigatorContent />
+    </ThemeProvider>
   );
 }
 

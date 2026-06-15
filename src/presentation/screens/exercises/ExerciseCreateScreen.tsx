@@ -16,6 +16,7 @@ import type { ExerciseScreenProps } from '../../navigation/types';
 import { useExercises } from '../../hooks/useExercises';
 import type { MuscleGroup, Equipment } from '../../../domain';
 import { MUSCLE_GROUPS, EQUIPMENT_TYPES } from '../../../domain';
+import { useTheme } from '../../context/ThemeContext';
 
 const muscleGroupLabels: Record<string, string> = {
   chest: 'Pecho',
@@ -52,16 +53,17 @@ interface PickerModalProps {
 }
 
 function PickerModal({ visible, title, options, labels, selected, onSelect, onClose }: PickerModalProps) {
+  const { theme } = useTheme();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.modalOverlay} onPress={onClose}>
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>{title}</Text>
+      <Pressable style={[styles.modalOverlay, { backgroundColor: theme.colors.shadow }]} onPress={onClose}>
+        <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
+          <Text style={[styles.modalTitle, { color: theme.colors.text }]}>{title}</Text>
           <ScrollView style={styles.modalScroll}>
             {options.map((option) => (
               <TouchableOpacity
                 key={option}
-                style={[styles.modalOption, selected === option && styles.modalOptionSelected]}
+                style={[styles.modalOption, selected === option && { backgroundColor: theme.colors.primaryLight }]}
                 onPress={() => {
                   onSelect(option);
                   onClose();
@@ -70,7 +72,8 @@ function PickerModal({ visible, title, options, labels, selected, onSelect, onCl
                 <Text
                   style={[
                     styles.modalOptionText,
-                    selected === option && styles.modalOptionTextSelected,
+                    { color: theme.colors.text },
+                    selected === option && { color: theme.colors.primary, fontWeight: '600' },
                   ]}
                 >
                   {labels[option] ?? option}
@@ -78,8 +81,8 @@ function PickerModal({ visible, title, options, labels, selected, onSelect, onCl
               </TouchableOpacity>
             ))}
           </ScrollView>
-          <TouchableOpacity style={styles.modalCloseButton} onPress={onClose}>
-            <Text style={styles.modalCloseButtonText}>Cancelar</Text>
+          <TouchableOpacity style={[styles.modalCloseButton, { backgroundColor: theme.colors.background }]} onPress={onClose}>
+            <Text style={[styles.modalCloseButtonText, { color: theme.colors.textSecondary }]}>Cancelar</Text>
           </TouchableOpacity>
         </View>
       </Pressable>
@@ -88,6 +91,7 @@ function PickerModal({ visible, title, options, labels, selected, onSelect, onCl
 }
 
 export function ExerciseCreateScreen({ navigation }: ExerciseScreenProps<'ExerciseCreate'>) {
+  const { theme } = useTheme();
   const { createExercise, isLoading, error, clearError } = useExercises();
 
   const [name, setName] = useState('');
@@ -147,20 +151,21 @@ export function ExerciseCreateScreen({ navigation }: ExerciseScreenProps<'Exerci
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.container}
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.title}>Nuevo ejercicio</Text>
+        <Text style={[styles.title, { color: theme.colors.text }]}>Nuevo ejercicio</Text>
 
         <View style={styles.form}>
           <View>
-            <Text style={styles.label}>Nombre</Text>
+            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Nombre</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: theme.colors.surfaceElevated, borderColor: theme.colors.border, color: theme.colors.text }]}
               placeholder="Nombre del ejercicio"
+              placeholderTextColor={theme.colors.textMuted}
               value={name}
               onChangeText={(text) => {
                 setLocalError(null);
@@ -173,55 +178,55 @@ export function ExerciseCreateScreen({ navigation }: ExerciseScreenProps<'Exerci
           </View>
 
           <View>
-            <Text style={styles.label}>Grupo muscular</Text>
+            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Grupo muscular</Text>
             <TouchableOpacity
-              style={styles.pickerButton}
+              style={[styles.pickerButton, { backgroundColor: theme.colors.surfaceElevated, borderColor: theme.colors.border }]}
               onPress={() => setShowMuscleGroupPicker(true)}
               activeOpacity={0.8}
             >
-              <Text style={muscleGroup ? styles.pickerValue : styles.pickerPlaceholder}>
+              <Text style={muscleGroup ? { color: theme.colors.text } : { color: theme.colors.textMuted }}>
                 {muscleGroup ? muscleGroupLabels[muscleGroup] : 'Seleccionar grupo muscular'}
               </Text>
             </TouchableOpacity>
           </View>
 
           <View>
-            <Text style={styles.label}>Equipamiento</Text>
+            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Equipamiento</Text>
             <TouchableOpacity
-              style={styles.pickerButton}
+              style={[styles.pickerButton, { backgroundColor: theme.colors.surfaceElevated, borderColor: theme.colors.border }]}
               onPress={() => setShowEquipmentPicker(true)}
               activeOpacity={0.8}
             >
-              <Text style={equipment ? styles.pickerValue : styles.pickerPlaceholder}>
+              <Text style={equipment ? { color: theme.colors.text } : { color: theme.colors.textMuted }}>
                 {equipment ? equipmentLabels[equipment] : 'Seleccionar equipamiento'}
               </Text>
             </TouchableOpacity>
           </View>
 
           {displayError ? (
-            <Text style={styles.errorText}>{displayError}</Text>
+            <Text style={[styles.errorText, { color: theme.colors.error }]}>{displayError}</Text>
           ) : null}
 
           <TouchableOpacity
-            style={[styles.saveButton, isLoading && styles.buttonDisabled]}
+            style={[styles.saveButton, { backgroundColor: theme.colors.primary }, isLoading && styles.buttonDisabled]}
             onPress={handleSave}
             disabled={isLoading}
             activeOpacity={0.8}
           >
             {isLoading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={theme.colors.surface} />
             ) : (
-              <Text style={styles.saveButtonText}>Guardar</Text>
+              <Text style={[styles.saveButtonText, { color: theme.colors.surface }]}>Guardar</Text>
             )}
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.cancelButton, isLoading && styles.buttonDisabled]}
+            style={[styles.cancelButton, { backgroundColor: theme.colors.borderLight }, isLoading && styles.buttonDisabled]}
             onPress={handleCancel}
             disabled={isLoading}
             activeOpacity={0.8}
           >
-            <Text style={styles.cancelButtonText}>Cancelar</Text>
+            <Text style={[styles.cancelButtonText, { color: theme.colors.textSecondary }]}>Cancelar</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -258,7 +263,6 @@ export function ExerciseCreateScreen({ navigation }: ExerciseScreenProps<'Exerci
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   scrollContent: {
     flexGrow: 1,
@@ -268,7 +272,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1a1a1a',
     marginBottom: 24,
   },
   form: {
@@ -277,43 +280,28 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#555',
     marginBottom: 6,
   },
   input: {
     height: 52,
     borderWidth: 1,
-    borderColor: '#ddd',
     borderRadius: 10,
     paddingHorizontal: 16,
     fontSize: 16,
-    backgroundColor: '#fafafa',
   },
   pickerButton: {
     height: 52,
     borderWidth: 1,
-    borderColor: '#ddd',
     borderRadius: 10,
     paddingHorizontal: 16,
     justifyContent: 'center',
-    backgroundColor: '#fafafa',
-  },
-  pickerValue: {
-    fontSize: 16,
-    color: '#1a1a1a',
-  },
-  pickerPlaceholder: {
-    fontSize: 16,
-    color: '#aaa',
   },
   errorText: {
-    color: '#d32f2f',
     fontSize: 14,
     textAlign: 'center',
   },
   saveButton: {
     height: 52,
-    backgroundColor: '#2f95dc',
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
@@ -323,29 +311,24 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   saveButtonText: {
-    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },
   cancelButton: {
     height: 52,
-    backgroundColor: '#eee',
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cancelButtonText: {
-    color: '#555',
     fontSize: 16,
     fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.4)',
   },
   modalContent: {
-    backgroundColor: '#fff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingHorizontal: 20,
@@ -356,7 +339,6 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1a1a1a',
     marginBottom: 16,
     textAlign: 'center',
   },
@@ -369,26 +351,16 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 6,
   },
-  modalOptionSelected: {
-    backgroundColor: '#e3f2fd',
-  },
   modalOptionText: {
     fontSize: 16,
-    color: '#333',
-  },
-  modalOptionTextSelected: {
-    color: '#2f95dc',
-    fontWeight: '600',
   },
   modalCloseButton: {
     height: 52,
-    backgroundColor: '#eee',
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   modalCloseButtonText: {
-    color: '#555',
     fontSize: 16,
     fontWeight: '600',
   },

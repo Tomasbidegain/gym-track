@@ -21,6 +21,7 @@ import { useWorkoutSessionContext } from '../../context/WorkoutSessionContext';
 import { useCompletedDaysInWeek } from '../../hooks/useCompletedDaysInWeek';
 import { generateSetsFromRoutine } from '../../../domain';
 import type { RoutineDay, WorkoutExercise } from '../../../domain';
+import { useTheme } from '../../context/ThemeContext';
 
 type SessionExercise = WorkoutExercise & {
   restSeconds: number;
@@ -33,6 +34,7 @@ type SessionExercise = WorkoutExercise & {
 type FooterMode = 'idle' | 'start_set' | 'end_set' | 'rest' | 'next_exercise' | 'finish';
 
 export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'WorkoutSession'>) {
+  const { theme } = useTheme();
   const { routineId, dayId: initialDayId } = route.params;
   const { routines, updateRoutine } = useRoutines();
   const { startSession, updateSet, completeSession, markSessionComplete, sessions } = useWorkoutSessionContext();
@@ -480,8 +482,8 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
 
   if (!routine || !day) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.errorText}>Rutina no encontrada</Text>
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <Text style={[styles.errorText, { color: theme.colors.error }]}>Rutina no encontrada</Text>
       </View>
     );
   }
@@ -499,14 +501,14 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.borderLight }]}>
         <View style={styles.headerInfo}>
-          <Text style={styles.routineName}>{routine.name}</Text>
-          <Text style={styles.dayName}>{day.name}</Text>
+          <Text style={[styles.routineName, { color: theme.colors.text }]}>{routine.name}</Text>
+          <Text style={[styles.dayName, { color: theme.colors.textSecondary }]}>{day.name}</Text>
         </View>
         {activeSession && (
           <SessionTimer startedAt={activeSession.startedAt} />
@@ -517,7 +519,7 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={styles.dayTabsContainer}
+        style={[styles.dayTabsContainer, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.borderLight }]}
         contentContainerStyle={styles.dayTabsContent}
       >
         {routine.days.map((d) => {
@@ -528,9 +530,10 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
               key={d.id}
               style={[
                 styles.dayTab,
-                isActive && isCompleted && styles.dayTabActiveCompleted,
-                isActive && !isCompleted && styles.dayTabActive,
-                !isActive && isCompleted && styles.dayTabCompleted,
+                { backgroundColor: theme.colors.background, borderColor: theme.colors.border },
+                isActive && !isCompleted && { backgroundColor: theme.colors.primaryLight, borderColor: theme.colors.primary },
+                !isActive && isCompleted && { backgroundColor: theme.colors.successLight, borderColor: theme.colors.success },
+                isActive && isCompleted && { backgroundColor: theme.colors.success, borderColor: theme.colors.success },
               ]}
               onPress={() => {
                 if (d.id === currentDayId) return;
@@ -541,9 +544,10 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
               <Text
                 style={[
                   styles.dayTabText,
-                  isActive && isCompleted && styles.dayTabTextActiveCompleted,
-                  isActive && !isCompleted && styles.dayTabTextActive,
-                  !isActive && isCompleted && styles.dayTabTextCompleted,
+                  { color: theme.colors.textSecondary },
+                  isActive && !isCompleted && { color: theme.colors.primary },
+                  !isActive && isCompleted && { color: theme.colors.success },
+                  isActive && isCompleted && { color: theme.colors.surface },
                 ]}
               >
                 {d.name}
@@ -551,7 +555,8 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
               {isCompleted && (
                 <Text style={[
                   styles.dayTabCheckmark,
-                  isActive && isCompleted && styles.dayTabTextActiveCompleted
+                  !isActive && isCompleted && { color: theme.colors.success },
+                  isActive && isCompleted && { color: theme.colors.surface },
                 ]}>
                   ✓
                 </Text>
@@ -563,14 +568,14 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
 
       {isLoadingCompletedDays ? (
         <View style={styles.contentLoadingContainer}>
-          <ActivityIndicator size="small" color="#2f95dc" />
+          <ActivityIndicator size="small" color={theme.colors.primary} />
         </View>
       ) : (
         <>
           {isDayCompleted && completedSession && (
-            <View style={styles.completedBanner}>
-              <Text style={styles.completedBannerText}>Día completado</Text>
-              <Text style={styles.completedBannerSubtext}>
+            <View style={[styles.completedBanner, { backgroundColor: theme.colors.success }]}>
+              <Text style={[styles.completedBannerText, { color: theme.colors.surface }]}>Día completado</Text>
+              <Text style={[styles.completedBannerSubtext, { color: theme.colors.successLight }]}>
                 Duración: {(() => {
                   const mins = Math.floor((completedSession.totalDurationSeconds || 0) / 60);
                   const secs = (completedSession.totalDurationSeconds || 0) % 60;
@@ -586,11 +591,11 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
               // Show all exercises when completed
               <>
                 {exercises.map((ex, exIdx) => (
-                  <View key={ex.exerciseId} style={styles.completedExerciseCard}>
+                  <View key={ex.exerciseId} style={[styles.completedExerciseCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
                     <View style={styles.exerciseHeader}>
                       <View style={styles.exerciseHeaderInfo}>
-                        <Text style={styles.exerciseName}>{ex.exerciseName}</Text>
-                        <Text style={styles.exerciseMeta}>
+                        <Text style={[styles.exerciseName, { color: theme.colors.text }]}>{ex.exerciseName}</Text>
+                        <Text style={[styles.exerciseMeta, { color: theme.colors.textMuted }]}>
                           {ex.muscleGroup} • {ex.equipment}
                         </Text>
                       </View>
@@ -606,11 +611,13 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
                             <View style={styles.timelineLeft}>
                               <View style={[
                                 styles.timelineDot,
-                                isCompleted && styles.timelineDotCompleted,
+                                { backgroundColor: theme.colors.background, borderColor: theme.colors.border },
+                                isCompleted && { backgroundColor: theme.colors.successLight, borderColor: theme.colors.success },
                               ]}>
                                 <Text style={[
                                   styles.timelineDotText,
-                                  isCompleted && styles.timelineDotTextCompleted,
+                                  { color: theme.colors.textSecondary },
+                                  isCompleted && { color: theme.colors.success },
                                 ]}>
                                   {isCompleted ? '✓' : set.setNumber}
                                 </Text>
@@ -618,33 +625,35 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
                               {!isLast && (
                                 <View style={[
                                   styles.timelineLine,
-                                  isCompleted && styles.timelineLineCompleted,
+                                  { backgroundColor: theme.colors.border },
+                                  isCompleted && { backgroundColor: theme.colors.success },
                                 ]} />
                               )}
                             </View>
 
                             <View style={[
                               styles.setCard,
-                              isCompleted && styles.setCardCompleted,
+                              { backgroundColor: theme.colors.surfaceElevated, borderColor: theme.colors.border },
+                              isCompleted && { backgroundColor: theme.colors.successLight, borderColor: theme.colors.success },
                             ]}>
                               <View style={styles.setCardContent}>
                                 {ex.isTimeBased ? (
-                                  <Text style={styles.setCardValue}>
+                                  <Text style={[styles.setCardValue, { color: theme.colors.text }]}>
                                     {set.durationSeconds && set.durationSeconds > 0
                                       ? formatTime(set.durationSeconds)
                                       : formatTime(ex.targetDurationSeconds || 0)}
-                                    <Text style={styles.setCardUnit}> tiempo</Text>
+                                    <Text style={[styles.setCardUnit, { color: theme.colors.textMuted }]}> tiempo</Text>
                                   </Text>
                                 ) : (
-                                  <Text style={styles.setCardValue}>
+                                  <Text style={[styles.setCardValue, { color: theme.colors.text }]}>
                                     {set.reps}
-                                    <Text style={styles.setCardUnit}> reps</Text>
+                                    <Text style={[styles.setCardUnit, { color: theme.colors.textMuted }]}> reps</Text>
                                   </Text>
                                 )}
-                                <Text style={styles.setCardDivider}>•</Text>
-                                <Text style={styles.setCardValue}>
+                                <Text style={[styles.setCardDivider, { color: theme.colors.textMuted }]}>•</Text>
+                                <Text style={[styles.setCardValue, { color: theme.colors.text }]}>
                                   {set.weight}
-                                  <Text style={styles.setCardUnit}> kg</Text>
+                                  <Text style={[styles.setCardUnit, { color: theme.colors.textMuted }]}> kg</Text>
                                 </Text>
                               </View>
                             </View>
@@ -662,12 +671,12 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
                   <>
                     {/* Exercise header */}
                     <View style={styles.exerciseHeader}>
-                      <View style={styles.exerciseImagePlaceholder}>
+                      <View style={[styles.exerciseImagePlaceholder, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
                         <Text style={styles.exerciseImageText}>💪</Text>
                       </View>
                       <View style={styles.exerciseHeaderInfo}>
-                        <Text style={styles.exerciseName}>{currentExercise.exerciseName}</Text>
-                        <Text style={styles.exerciseMeta}>
+                        <Text style={[styles.exerciseName, { color: theme.colors.text }]}>{currentExercise.exerciseName}</Text>
+                        <Text style={[styles.exerciseMeta, { color: theme.colors.textMuted }]}>
                           {currentExercise.muscleGroup} • {currentExercise.equipment}
                         </Text>
                       </View>
@@ -686,13 +695,15 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
                             <View style={styles.timelineLeft}>
                               <View style={[
                                 styles.timelineDot,
-                                isCompleted && styles.timelineDotCompleted,
-                                isActive && !isCompleted && styles.timelineDotActive,
+                                { backgroundColor: theme.colors.background, borderColor: theme.colors.border },
+                                isCompleted && { backgroundColor: theme.colors.successLight, borderColor: theme.colors.success },
+                                isActive && !isCompleted && { backgroundColor: theme.colors.primaryLight, borderColor: theme.colors.primary },
                               ]}>
                                 <Text style={[
                                   styles.timelineDotText,
-                                  isCompleted && styles.timelineDotTextCompleted,
-                                  isActive && !isCompleted && styles.timelineDotTextActive,
+                                  { color: theme.colors.textSecondary },
+                                  isCompleted && { color: theme.colors.success },
+                                  isActive && !isCompleted && { color: theme.colors.primary },
                                 ]}>
                                   {isCompleted ? '✓' : set.setNumber}
                                 </Text>
@@ -700,7 +711,8 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
                               {!isLast && (
                                 <View style={[
                                   styles.timelineLine,
-                                  isCompleted && styles.timelineLineCompleted,
+                                  { backgroundColor: theme.colors.border },
+                                  isCompleted && { backgroundColor: theme.colors.success },
                                 ]} />
                               )}
                             </View>
@@ -708,27 +720,28 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
                             {/* Set card */}
                             <View style={[
                               styles.setCard,
-                              isCompleted && styles.setCardCompleted,
-                              isActive && !isCompleted && styles.setCardActive,
+                              { backgroundColor: theme.colors.surfaceElevated, borderColor: theme.colors.border },
+                              isCompleted && { backgroundColor: theme.colors.successLight, borderColor: theme.colors.success },
+                              isActive && !isCompleted && { backgroundColor: theme.colors.primaryLight, borderColor: theme.colors.primary },
                             ]}>
                               <View style={styles.setCardContent}>
                                 {currentExercise.isTimeBased ? (
-                                  <Text style={styles.setCardValue}>
+                                  <Text style={[styles.setCardValue, { color: theme.colors.text }]}>
                                     {set.durationSeconds && set.durationSeconds > 0
                                       ? formatTime(set.durationSeconds)
                                       : formatTime(currentExercise.targetDurationSeconds || 0)}
-                                    <Text style={styles.setCardUnit}> tiempo</Text>
+                                    <Text style={[styles.setCardUnit, { color: theme.colors.textMuted }]}> tiempo</Text>
                                   </Text>
                                 ) : (
-                                  <Text style={styles.setCardValue}>
+                                  <Text style={[styles.setCardValue, { color: theme.colors.text }]}>
                                     {set.reps}
-                                    <Text style={styles.setCardUnit}> reps</Text>
+                                    <Text style={[styles.setCardUnit, { color: theme.colors.textMuted }]}> reps</Text>
                                   </Text>
                                 )}
-                                <Text style={styles.setCardDivider}>•</Text>
-                                <Text style={styles.setCardValue}>
+                                <Text style={[styles.setCardDivider, { color: theme.colors.textMuted }]}>•</Text>
+                                <Text style={[styles.setCardValue, { color: theme.colors.text }]}>
                                   {set.weight}
-                                  <Text style={styles.setCardUnit}> kg</Text>
+                                  <Text style={[styles.setCardUnit, { color: theme.colors.textMuted }]}> kg</Text>
                                 </Text>
                               </View>
 
@@ -736,9 +749,9 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
                               {isActive && !isCompleted && !isDayCompleted && sessionId && (
                                 <View style={styles.setInputs}>
                                   <View style={styles.inputGroup}>
-                                    <Text style={styles.inputLabel}>Peso (kg)</Text>
+                                    <Text style={[styles.inputLabel, { color: theme.colors.textMuted }]}>Peso (kg)</Text>
                                     <TextInput
-                                      style={styles.setInput}
+                                      style={[styles.setInput, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, color: theme.colors.text }]}
                                       value={String(set.weight)}
                                       onChangeText={(text) => {
                                         const val = parseFloat(text) || 0;
@@ -746,15 +759,15 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
                                       }}
                                       keyboardType="numeric"
                                       placeholder="0"
-                                      placeholderTextColor="#888"
+                                      placeholderTextColor={theme.colors.textMuted}
                                       editable={!isDayCompleted}
                                     />
                                   </View>
                                   {!currentExercise.isTimeBased && (
                                     <View style={styles.inputGroup}>
-                                      <Text style={styles.inputLabel}>Reps</Text>
+                                      <Text style={[styles.inputLabel, { color: theme.colors.textMuted }]}>Reps</Text>
                                       <TextInput
-                                        style={styles.setInput}
+                                        style={[styles.setInput, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, color: theme.colors.text }]}
                                         value={String(set.reps)}
                                         onChangeText={(text) => {
                                           const val = parseInt(text, 10) || 0;
@@ -762,7 +775,7 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
                                         }}
                                         keyboardType="numeric"
                                         placeholder="0"
-                                        placeholderTextColor="#888"
+                                        placeholderTextColor={theme.colors.textMuted}
                                         editable={!isDayCompleted}
                                       />
                                     </View>
@@ -778,14 +791,14 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
                     {/* Next exercise card */}
                     {nextExercise && footerMode !== 'finish' && (
                       <View style={styles.nextExerciseSection}>
-                        <Text style={styles.nextExerciseLabel}>Siguiente ejercicio</Text>
-                        <View style={styles.nextExerciseCard}>
-                          <View style={styles.nextExerciseImagePlaceholder}>
+                        <Text style={[styles.nextExerciseLabel, { color: theme.colors.textMuted }]}>Siguiente ejercicio</Text>
+                        <View style={[styles.nextExerciseCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                          <View style={[styles.nextExerciseImagePlaceholder, { backgroundColor: theme.colors.background }]}>
                             <Text style={styles.nextExerciseImageText}>💪</Text>
                           </View>
                           <View style={styles.nextExerciseInfo}>
-                            <Text style={styles.nextExerciseName}>{nextExercise.exerciseName}</Text>
-                            <Text style={styles.nextExerciseMeta}>
+                            <Text style={[styles.nextExerciseName, { color: theme.colors.text }]}>{nextExercise.exerciseName}</Text>
+                            <Text style={[styles.nextExerciseMeta, { color: theme.colors.textMuted }]}>
                               {nextExercise.sets.length} series
                               {nextExercise.isTimeBased
                                 ? ` • ${formatTime(nextExercise.targetDurationSeconds || 0)}`
@@ -799,7 +812,7 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
                   </>
                 ) : (
                   <View style={styles.emptyState}>
-                    <Text style={styles.emptyStateText}>No hay ejercicios para este día</Text>
+                    <Text style={[styles.emptyStateText, { color: theme.colors.textMuted }]}>No hay ejercicios para este día</Text>
                   </View>
                 )}
               </>
@@ -808,15 +821,15 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
 
           {/* Footer */}
           {!isDayCompleted && (
-            <View style={styles.footer}>
+            <View style={[styles.footer, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.borderLight }]}>
               {footerMode === 'idle' && (
                 <TouchableOpacity
-                  style={[styles.actionButton, styles.actionButtonStart, isSaving && styles.buttonDisabled]}
+                  style={[styles.actionButton, { backgroundColor: theme.colors.primary }, isSaving && styles.buttonDisabled]}
                   onPress={handleStartSession}
                   disabled={isSaving}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.actionButtonText}>
+                  <Text style={[styles.actionButtonText, { color: theme.colors.surface }]}>
                     {isSaving ? 'Iniciando...' : 'Iniciar entrenamiento'}
                   </Text>
                 </TouchableOpacity>
@@ -824,23 +837,23 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
 
               {footerMode === 'start_set' && (
                 <TouchableOpacity
-                  style={[styles.actionButton, styles.actionButtonStart]}
+                  style={[styles.actionButton, { backgroundColor: theme.colors.primary }]}
                   onPress={handleStartSet}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.actionButtonText}>Iniciar serie {getActiveSetText()}</Text>
+                  <Text style={[styles.actionButtonText, { color: theme.colors.surface }]}>Iniciar serie {getActiveSetText()}</Text>
                 </TouchableOpacity>
               )}
 
               {footerMode === 'end_set' && (
                 <TouchableOpacity
-                  style={[styles.actionButton, styles.actionButtonEnd]}
+                  style={[styles.actionButton, { backgroundColor: theme.colors.warning }]}
                   onPress={handleEndSet}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.actionButtonText}>Terminar serie {getActiveSetText()}</Text>
+                  <Text style={[styles.actionButtonText, { color: theme.colors.surface }]}>Terminar serie {getActiveSetText()}</Text>
                   {currentExercise?.isTimeBased && (
-                    <Text style={styles.actionButtonSubtext}>
+                    <Text style={[styles.actionButtonSubtext, { color: theme.colors.surface }]}>
                       {formatTime(exerciseTimerSeconds)}
                     </Text>
                   )}
@@ -849,27 +862,27 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
 
               {footerMode === 'rest' && (
                 <View>
-                  <Text style={styles.restTitle}>Descanso</Text>
-                  <Text style={styles.restTimerText}>{formatTime(restTimerSeconds)}</Text>
+                  <Text style={[styles.restTitle, { color: theme.colors.text }]}>Descanso</Text>
+                  <Text style={[styles.restTimerText, { color: theme.colors.text }]}>{formatTime(restTimerSeconds)}</Text>
                   <TouchableOpacity
-                    style={[styles.actionButton, styles.actionButtonRest]}
+                    style={[styles.actionButton, { backgroundColor: theme.colors.warning }]}
                     onPress={handleCancelRest}
                     activeOpacity={0.8}
                   >
-                    <Text style={styles.actionButtonText}>Detener</Text>
+                    <Text style={[styles.actionButtonText, { color: theme.colors.surface }]}>Detener</Text>
                   </TouchableOpacity>
-                  <Text style={styles.cancelHint}>Tocar para detener el timer</Text>
+                  <Text style={[styles.cancelHint, { color: theme.colors.textMuted }]}>Tocar para detener el timer</Text>
                 </View>
               )}
 
               {footerMode === 'next_exercise' && (
                 <TouchableOpacity
-                  style={[styles.actionButton, styles.actionButtonNext]}
+                  style={[styles.actionButton, { backgroundColor: theme.colors.primary }]}
                   onPress={handleNextExercise}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.actionButtonText}>Siguiente ejercicio</Text>
-                  <Text style={styles.actionButtonSubtext}>
+                  <Text style={[styles.actionButtonText, { color: theme.colors.surface }]}>Siguiente ejercicio</Text>
+                  <Text style={[styles.actionButtonSubtext, { color: theme.colors.surface }]}>
                     {nextExercise?.exerciseName}
                   </Text>
                 </TouchableOpacity>
@@ -877,12 +890,12 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
 
               {footerMode === 'finish' && (
                 <TouchableOpacity
-                  style={[styles.actionButton, styles.actionButtonFinish]}
+                  style={[styles.actionButton, { backgroundColor: theme.colors.success }]}
                   onPress={handleCompleteSession}
                   disabled={isSaving}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.actionButtonText}>
+                  <Text style={[styles.actionButtonText, { color: theme.colors.surface }]}>
                     {isSaving ? 'Finalizando...' : 'Finalizar entrenamiento'}
                   </Text>
                 </TouchableOpacity>
@@ -933,7 +946,6 @@ export function WorkoutSessionScreen({ route, navigation }: TrainScreenProps<'Wo
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   contentLoadingContainer: {
     flex: 1,
@@ -946,9 +958,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
   },
   headerInfo: {
     flex: 1,
@@ -956,18 +966,14 @@ const styles = StyleSheet.create({
   routineName: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1a1a1a',
   },
   dayName: {
     fontSize: 16,
-    color: '#666',
     marginTop: 4,
   },
   dayTabsContainer: {
     maxHeight: 60,
-    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
   },
   dayTabsContent: {
     paddingHorizontal: 12,
@@ -978,43 +984,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#f5f5f5',
     borderWidth: 1,
-    borderColor: '#e8e8e8',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
-  dayTabActive: {
-    backgroundColor: '#e3f2fd',
-    borderColor: '#2f95dc',
-  },
-  dayTabCompleted: {
-    backgroundColor: '#f0f9f0',
-    borderColor: '#4caf50',
-  },
-  dayTabActiveCompleted: {
-    backgroundColor: '#4caf50',
-    borderColor: '#388e3c',
-  },
   dayTabText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#666',
-  },
-  dayTabTextActive: {
-    color: '#2f95dc',
-  },
-  dayTabTextCompleted: {
-    color: '#4caf50',
-  },
-  dayTabTextActiveCompleted: {
-    color: '#fff',
   },
   dayTabCheckmark: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#4caf50',
   },
   scrollContent: {
     flex: 1,
@@ -1024,12 +1005,10 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   completedExerciseCard: {
-    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#e8e8e8',
   },
   exerciseHeader: {
     flexDirection: 'row',
@@ -1041,11 +1020,9 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 12,
-    backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#e8e8e8',
   },
   exerciseImageText: {
     fontSize: 32,
@@ -1056,12 +1033,10 @@ const styles = StyleSheet.create({
   exerciseName: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#1a1a1a',
     marginBottom: 4,
   },
   exerciseMeta: {
     fontSize: 14,
-    color: '#888',
   },
   timelineContainer: {
     marginBottom: 0,
@@ -1079,57 +1054,26 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#f5f5f5',
     borderWidth: 2,
-    borderColor: '#e8e8e8',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1,
   },
-  timelineDotActive: {
-    borderColor: '#2f95dc',
-    backgroundColor: '#e3f2fd',
-  },
-  timelineDotCompleted: {
-    borderColor: '#4caf50',
-    backgroundColor: '#f0f9f0',
-  },
   timelineDotText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#666',
-  },
-  timelineDotTextActive: {
-    color: '#2f95dc',
-  },
-  timelineDotTextCompleted: {
-    color: '#4caf50',
   },
   timelineLine: {
     width: 2,
     flex: 1,
-    backgroundColor: '#e8e8e8',
     minHeight: 40,
-  },
-  timelineLineCompleted: {
-    backgroundColor: '#4caf50',
   },
   setCard: {
     flex: 1,
-    backgroundColor: '#fafafa',
     borderRadius: 10,
     padding: 14,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#e8e8e8',
-  },
-  setCardActive: {
-    borderColor: '#2f95dc',
-    backgroundColor: '#e3f2fd',
-  },
-  setCardCompleted: {
-    borderColor: '#4caf50',
-    backgroundColor: '#f0f9f0',
   },
   setCardContent: {
     flexDirection: 'row',
@@ -1140,18 +1084,15 @@ const styles = StyleSheet.create({
   setCardValue: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1a1a1a',
     fontVariant: ['tabular-nums'],
   },
   setCardUnit: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#888',
   },
   setCardDivider: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#888',
   },
   setInputs: {
     flexDirection: 'row',
@@ -1163,20 +1104,16 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: 11,
-    color: '#888',
     marginBottom: 4,
   },
   setInput: {
-    backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: '#ddd',
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 8,
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
-    color: '#1a1a1a',
   },
   nextExerciseSection: {
     marginTop: 8,
@@ -1184,7 +1121,6 @@ const styles = StyleSheet.create({
   nextExerciseLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#888',
     marginBottom: 10,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -1193,17 +1129,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#e8e8e8',
   },
   nextExerciseImagePlaceholder: {
     width: 56,
     height: 56,
     borderRadius: 10,
-    backgroundColor: '#f5f5f5',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1216,12 +1149,10 @@ const styles = StyleSheet.create({
   nextExerciseName: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1a1a1a',
     marginBottom: 2,
   },
   nextExerciseMeta: {
     fontSize: 13,
-    color: '#888',
   },
   emptyState: {
     alignItems: 'center',
@@ -1230,35 +1161,16 @@ const styles = StyleSheet.create({
   },
   emptyStateText: {
     fontSize: 16,
-    color: '#888',
   },
   footer: {
     padding: 16,
     paddingBottom: Platform.OS === 'ios' ? 32 : 24,
-    backgroundColor: '#fff',
     borderTopWidth: 1,
-    borderTopColor: '#eee',
   },
   actionButton: {
     paddingVertical: 16,
-    backgroundColor: '#2f95dc',
     borderRadius: 14,
     alignItems: 'center',
-  },
-  actionButtonStart: {
-    backgroundColor: '#2f95dc',
-  },
-  actionButtonEnd: {
-    backgroundColor: '#ff9500',
-  },
-  actionButtonRest: {
-    backgroundColor: '#ff6b35',
-  },
-  actionButtonNext: {
-    backgroundColor: '#2f95dc',
-  },
-  actionButtonFinish: {
-    backgroundColor: '#4caf50',
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -1266,25 +1178,21 @@ const styles = StyleSheet.create({
   actionButtonText: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#fff',
   },
   actionButtonSubtext: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#ffffff90',
     marginTop: 2,
   },
   restTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1a1a1a',
     textAlign: 'center',
     marginBottom: 8,
   },
   restTimerText: {
     fontSize: 48,
     fontWeight: '200',
-    color: '#1a1a1a',
     textAlign: 'center',
     marginBottom: 16,
     fontVariant: ['tabular-nums'],
@@ -1292,12 +1200,10 @@ const styles = StyleSheet.create({
   cancelHint: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#888',
     textAlign: 'center',
     marginTop: 8,
   },
   completedBanner: {
-    backgroundColor: '#4caf50',
     paddingVertical: 10,
     paddingHorizontal: 16,
     alignItems: 'center',
@@ -1305,17 +1211,14 @@ const styles = StyleSheet.create({
   completedBannerText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#fff',
   },
   completedBannerSubtext: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#e8f5e9',
     marginTop: 2,
   },
   errorText: {
     fontSize: 16,
-    color: '#d32f2f',
     textAlign: 'center',
     marginTop: 40,
   },
