@@ -14,6 +14,8 @@ import type { Routine } from '../../../domain';
 import { useTheme } from '../../context/ThemeContext';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
+import { Skeleton } from '../../components/Skeleton';
+import { EmptyState } from '../../components/EmptyState';
 
 const muscleGroupLabels: Record<string, string> = {
   chest: 'Pecho',
@@ -140,6 +142,27 @@ export function RoutineListScreen({ navigation }: RoutineScreenProps<'RoutineLis
     [handleRoutinePress, handleLongPress, theme],
   );
 
+  if (isLoading && routines.length === 0) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={styles.listContent}>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <View key={i} style={{ marginHorizontal: 16, marginVertical: 6 }}>
+              <Card elevated>
+                <Skeleton width="60%" height={18} style={{ marginBottom: 8 }} />
+                <Skeleton width="40%" height={14} style={{ marginBottom: 12 }} />
+                <View style={styles.badgesRow}>
+                  <Skeleton width={60} height={24} borderRadius={8} />
+                  <Skeleton width={60} height={24} borderRadius={8} />
+                </View>
+              </Card>
+            </View>
+          ))}
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <FlatList
@@ -151,12 +174,13 @@ export function RoutineListScreen({ navigation }: RoutineScreenProps<'RoutineLis
           <RefreshControl refreshing={isLoading} onRefresh={handleRefresh} tintColor={theme.colors.primary} />
         }
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No tenes rutinas</Text>
-            <Text style={[styles.emptySubtitle, { color: theme.colors.textMuted }]}>
-              Crea una para empezar a entrenar con orden
-            </Text>
-          </View>
+          <EmptyState
+            icon="🏋️"
+            title="No tenes rutinas"
+            message="Crea una para empezar a entrenar con orden"
+            actionLabel="Crear"
+            onAction={handleCreate}
+          />
         }
       />
 
@@ -229,21 +253,6 @@ const styles = StyleSheet.create({
   moreBadge: {
     fontSize: 12,
     fontWeight: '500',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 32,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    textAlign: 'center',
   },
   fab: {
     position: 'absolute',

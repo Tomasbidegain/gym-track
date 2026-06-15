@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   RefreshControl,
-  ActivityIndicator,
   ScrollView,
 } from 'react-native';
 import type { ExerciseScreenProps } from '../../navigation/types';
@@ -17,6 +16,8 @@ import { MUSCLE_GROUPS, EQUIPMENT_TYPES } from '../../../domain';
 import { useTheme } from '../../context/ThemeContext';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
+import { Skeleton } from '../../components/Skeleton';
+import { EmptyState } from '../../components/EmptyState';
 
 const muscleGroupLabels: Record<string, string> = {
   chest: 'Pecho',
@@ -151,8 +152,12 @@ export function ExerciseListScreen({ navigation }: ExerciseScreenProps<'Exercise
       ) : null}
 
       {isLoading && exercises.length === 0 ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
+        <View style={styles.listContent}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <View key={i} style={{ marginHorizontal: 16, marginVertical: 6 }}>
+              <Skeleton width="100%" height={72} borderRadius={12} />
+            </View>
+          ))}
         </View>
       ) : (
         <FlatList
@@ -171,14 +176,17 @@ export function ExerciseListScreen({ navigation }: ExerciseScreenProps<'Exercise
             <RefreshControl refreshing={isLoading} onRefresh={refresh} tintColor={theme.colors.primary} />
           }
           ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No hay ejercicios</Text>
-              <Text style={[styles.emptySubtitle, { color: theme.colors.textMuted }]}>
-                {searchQuery || muscleGroupFilter || equipmentFilter
+            <EmptyState
+              icon="💪"
+              title="No hay ejercicios"
+              message={
+                searchQuery || muscleGroupFilter || equipmentFilter
                   ? 'Probá ajustando los filtros de búsqueda'
-                  : 'Agregá tu primer ejercicio con el botón +'}
-              </Text>
-            </View>
+                  : 'Agregá tu primer ejercicio con el botón +'
+              }
+              actionLabel={!searchQuery && !muscleGroupFilter && !equipmentFilter ? 'Agregar' : undefined}
+              onAction={!searchQuery && !muscleGroupFilter && !equipmentFilter ? handleCreate : undefined}
+            />
           }
         />
       )}
@@ -235,11 +243,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingBottom: 80,
   },
-  centerContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   errorContainer: {
     padding: 16,
     marginHorizontal: 16,
@@ -248,21 +251,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   errorText: {
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 32,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  emptySubtitle: {
     fontSize: 14,
     textAlign: 'center',
   },

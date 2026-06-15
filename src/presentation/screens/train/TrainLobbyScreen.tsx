@@ -10,6 +10,8 @@ import type { TrainScreenProps } from '../../navigation/types';
 import { useRoutines } from '../../hooks/useRoutines';
 import { useTheme } from '../../context/ThemeContext';
 import { Card } from '../../components/Card';
+import { Skeleton } from '../../components/Skeleton';
+import { EmptyState } from '../../components/EmptyState';
 
 export function TrainLobbyScreen({
   navigation,
@@ -25,18 +27,28 @@ export function TrainLobbyScreen({
 
   if (isLoading) {
     return (
-      <View style={[styles.centerContainer, { backgroundColor: theme.colors.background }]}>
-        <Text style={[styles.emptyText, { color: theme.colors.textMuted }]}>Cargando rutinas...</Text>
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={styles.content}>
+          <Skeleton width="60%" height={28} borderRadius={8} style={{ marginBottom: 16 }} />
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i} elevated>
+              <Skeleton width="50%" height={22} borderRadius={8} style={{ marginBottom: 8 }} />
+              <Skeleton width="80%" height={16} borderRadius={8} style={{ marginBottom: 8 }} />
+              <Skeleton width="30%" height={14} borderRadius={8} />
+            </Card>
+          ))}
+        </View>
       </View>
     );
   }
 
   if (routines.length === 0) {
     return (
-      <View style={[styles.centerContainer, { backgroundColor: theme.colors.background }]}>
-        <Text style={[styles.emptyText, { color: theme.colors.textMuted }]}>No tenes rutinas creadas</Text>
-        <Text style={[styles.hintText, { color: theme.colors.textMuted }]}>Crea una rutina para empezar a entrenar</Text>
-      </View>
+      <EmptyState
+        icon="🏋️"
+        title="No tenes rutinas creadas"
+        message="Crea una rutina para empezar a entrenar"
+      />
     );
   }
 
@@ -73,25 +85,10 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     gap: 12,
   },
-  centerContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 32,
-  },
   title: {
     fontSize: 22,
     fontWeight: '700',
     marginBottom: 16,
-  },
-  emptyText: {
-    fontSize: 16,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  hintText: {
-    fontSize: 14,
-    textAlign: 'center',
   },
   cardTitle: {
     fontSize: 18,
